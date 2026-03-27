@@ -175,15 +175,15 @@ function tabClass:Button(text,callback)
 
 end
 
-function tabClass:Toggle(text,callback)
+function tabClass:Toggle(text,startvalue,callback)
 
-	local state = false
+	local state = startvalue
 
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1,-10,0,40)
 	btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
 	btn.TextColor3 = Color3.new(1,1,1)
-	btn.Text = text.." : OFF"
+	btn.Text = text.." : ON"
 	btn.Parent = self.frame
 
 	btn.MouseButton1Click:Connect(function()
