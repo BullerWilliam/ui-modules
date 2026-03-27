@@ -2,6 +2,8 @@ local plrs = game:GetService("Players")
 local plr = plrs.LocalPlayer
 local uis = game:GetService("UserInputService")
 
+print("------------------------loaded ui module-------------------------")
+
 local gui = Instance.new("ScreenGui")
 gui.Parent = plr:WaitForChild("PlayerGui")
 
