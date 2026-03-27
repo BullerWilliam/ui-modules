@@ -99,10 +99,15 @@ function ui:CreateWindow(titleText)
 	win.tabs = {}
 	win.tabButtons = {}
 	win.currentTab = nil
+	win.title = title
 
 	table.insert(self.windows,win)
 
 	return win
+end
+
+function windowClass:ChangeTitle(newtitle)
+	self.title.Text = newtitle
 end
 
 function windowClass:SelectTab(tab)
