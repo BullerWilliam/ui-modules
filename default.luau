@@ -183,7 +183,11 @@ function tabClass:Toggle(text,startvalue,callback)
 	btn.Size = UDim2.new(1,-10,0,40)
 	btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
 	btn.TextColor3 = Color3.new(1,1,1)
-	btn.Text = text.." : ON"
+	if state then
+		btn.Text = text.." : ON"
+	else
+		btn.Text = text.." : OFF"
+	end
 	btn.Parent = self.frame
 
 	btn.MouseButton1Click:Connect(function()
