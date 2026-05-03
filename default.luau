@@ -949,13 +949,13 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 		local y = clamp(input.Position.Y - picker.AbsolutePosition.Y, 0, picker.AbsoluteSize.Y)
 		saturation = picker.AbsoluteSize.X == 0 and 0 or x / picker.AbsoluteSize.X
 		value = 1 - (picker.AbsoluteSize.Y == 0 and 0 or y / picker.AbsoluteSize.Y)
-		syncVisuals(true)
+		syncVisuals(false)
 	end
 
 	local function updateFromHue(input)
 		local x = clamp(input.Position.X - hueBar.AbsolutePosition.X, 0, hueBar.AbsoluteSize.X)
 		hue = hueBar.AbsoluteSize.X == 0 and 0 or x / hueBar.AbsoluteSize.X
-		syncVisuals(true)
+		syncVisuals(false)
 	end
 
 	toggle.MouseButton1Click:Connect(function()
@@ -990,8 +990,12 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 
 	uis.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			local shouldEmit = draggingSquare or draggingHue
 			draggingSquare = false
 			draggingHue = false
+			if shouldEmit then
+				emit()
+			end
 		end
 	end)
 
