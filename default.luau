@@ -23,18 +23,20 @@ ui.windowCount = 0
 ui.dragWindow = nil
 ui.dragStart = nil
 ui.startPos = nil
+ui.defaultAccent = Color3.fromRGB(75, 139, 255)
 ui.theme = {
 	bg = Color3.fromRGB(24, 25, 30),
 	panel = Color3.fromRGB(35, 37, 44),
 	panelLight = Color3.fromRGB(47, 50, 59),
 	control = Color3.fromRGB(55, 59, 69),
 	controlHover = Color3.fromRGB(67, 72, 84),
-	accent = Color3.fromRGB(75, 139, 255),
+	accent = ui.defaultAccent,
 	accentDark = Color3.fromRGB(45, 92, 184),
 	text = Color3.fromRGB(245, 247, 250),
 	muted = Color3.fromRGB(176, 184, 196),
 	border = Color3.fromRGB(70, 75, 88),
 }
+ui.themeBindings = {}
 
 local windowClass = {}
 windowClass.__index = windowClass
@@ -53,6 +55,19 @@ multiDropdownClass.__index = multiDropdownClass
 
 local function clamp(value, minValue, maxValue)
 	return math.max(minValue, math.min(maxValue, value))
+end
+
+local function darkenColor(color, amount)
+	amount = amount or 0.68
+	return Color3.new(color.R * amount, color.G * amount, color.B * amount)
+end
+
+local function normalizeNumber(text, fallback)
+	local value = tonumber(text)
+	if value == nil then
+		return fallback
+	end
+	return value
 end
 
 local function updateScale()
@@ -107,6 +122,66 @@ local function setControlHover(control, normalColor)
 	control.MouseLeave:Connect(function()
 		control.BackgroundColor3 = normalColor
 	end)
+end
+
+function ui:_bindTheme(instance, property, activeKey, inactiveKey, predicate)
+	table.insert(self.themeBindings, {
+		instance = instance,
+		property = property,
+		activeKey = activeKey,
+		inactiveKey = inactiveKey,
+		predicate = predicate,
+	})
+	self:_applyThemeBinding(self.themeBindings[#self.themeBindings])
+end
+
+function ui:_applyThemeBinding(binding)
+	if not binding.instance or not binding.instance.Parent then
+		return
+	end
+
+	local key = binding.activeKey
+	if binding.predicate and not binding.predicate() then
+		key = binding.inactiveKey or binding.activeKey
+	end
+
+	binding.instance[binding.property] = self.theme[key]
+end
+
+function ui:RefreshTheme()
+	for _, binding in pairs(self.themeBindings) do
+		self:_applyThemeBinding(binding)
+	end
+
+	for _, window in pairs(self.windows) do
+		if window.currentTab then
+			window:SelectTab(window.currentTab)
+		end
+	end
+end
+
+function ui:SetTheme(theme)
+	if theme == nil or theme == "default" or theme == "blue" then
+		self.theme.accent = self.defaultAccent
+	elseif typeof(theme) == "Color3" then
+		self.theme.accent = theme
+	elseif type(theme) == "table" and typeof(theme.accent) == "Color3" then
+		self.theme.accent = theme.accent
+	else
+		warn("ui:SetTheme expected \"default\", \"blue\", a Color3, or { accent = Color3 }")
+		return
+	end
+
+	self.theme.accentDark = darkenColor(self.theme.accent)
+	self:RefreshTheme()
+end
+
+function ui:SetAccentColor(color)
+	self:SetTheme(color)
+end
+
+function ui:UseDefaultTheme()
+	self:SetTheme("default")
 end
 
 local function makeControlFrame(parent, height)
@@ -192,6 +267,7 @@ function ui:CreateWindow(titleText)
 	tabsBar.ScrollBarThickness = 3
 	tabsBar.ScrollBarImageColor3 = ui.theme.accent
 	tabsBar.Parent = main
+	ui:_bindTheme(tabsBar, "ScrollBarImageColor3", "accent")
 	padding(tabsBar, 8, 5, 8, 5)
 
 	local tabsLayout = Instance.new("UIListLayout")
@@ -287,6 +363,7 @@ function windowClass:CreateTab(name)
 	frame.CanvasSize = UDim2.new(0, 0, 0, 0)
 	frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	frame.Parent = self.content
+	ui:_bindTheme(frame, "ScrollBarImageColor3", "accent")
 
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 8)
@@ -358,6 +435,9 @@ function tabClass:Toggle(text, startvalue, callback)
 	btn.Parent = row
 	corner(btn, 6)
 	stroke(btn, ui.theme.border, 0.5)
+	ui:_bindTheme(btn, "BackgroundColor3", "accent", "control", function()
+		return state
+	end)
 
 	btn.MouseButton1Click:Connect(function()
 		state = not state
@@ -374,6 +454,7 @@ function tabClass:Toggle(text, startvalue, callback)
 			state = value == true
 			btn.Text = state and "ON" or "OFF"
 			btn.BackgroundColor3 = state and ui.theme.accent or ui.theme.control
+			ui:RefreshTheme()
 		end,
 		GetValue = function()
 			return state
@@ -422,6 +503,383 @@ function tabClass:Input(labelText, placeholder, callback)
 	end)
 
 	return box
+end
+
+function tabClass:NumberInput(labelText, defaultValue, callback, minValue, maxValue)
+	local box
+	box = self:Input(labelText, tostring(defaultValue or 0), function(text)
+		local value = normalizeNumber(text, defaultValue or 0)
+		if minValue then
+			value = math.max(minValue, value)
+		end
+		if maxValue then
+			value = math.min(maxValue, value)
+		end
+		box.Text = tostring(value)
+
+		if callback then
+			callback(value)
+		end
+	end)
+
+	box.Text = defaultValue ~= nil and tostring(defaultValue) or ""
+	return box
+end
+
+function tabClass:PasswordInput(labelText, placeholder, callback)
+	local realText = ""
+	local box = self:Input(labelText, placeholder or "Password")
+
+	box.FocusLost:Connect(function()
+		if callback then
+			callback(realText)
+		end
+	end)
+
+	box:GetPropertyChangedSignal("Text"):Connect(function()
+		if not box:IsFocused() then
+			return
+		end
+
+		local text = box.Text
+		if text == string.rep("*", string.len(realText)) then
+			return
+		end
+
+		if string.len(text) < string.len(realText) then
+			realText = string.sub(realText, 1, string.len(text))
+		elseif string.len(text) > string.len(realText) then
+			realText ..= string.sub(text, string.len(realText) + 1)
+		end
+
+		box.Text = string.rep("*", string.len(realText))
+	end)
+
+	return {
+		box = box,
+		GetValue = function()
+			return realText
+		end,
+		SetValue = function(_, value)
+			realText = tostring(value or "")
+			box.Text = string.rep("*", string.len(realText))
+		end,
+	}
+end
+
+function tabClass:TextArea(labelText, placeholder, callback)
+	local row = makeControlFrame(self.frame, 96)
+
+	local title = makeLabel(row, labelText, 110)
+	title.Size = UDim2.new(1, 0, 0, 22)
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(1, 0, 1, -28)
+	box.Position = UDim2.new(0, 0, 0, 28)
+	box.BackgroundColor3 = ui.theme.control
+	box.BorderSizePixel = 0
+	box.TextColor3 = ui.theme.text
+	box.PlaceholderColor3 = ui.theme.muted
+	box.PlaceholderText = placeholder or ""
+	box.Text = ""
+	box.ClearTextOnFocus = false
+	box.Font = Enum.Font.Gotham
+	box.TextSize = 14
+	box.TextWrapped = true
+	box.TextXAlignment = Enum.TextXAlignment.Left
+	box.TextYAlignment = Enum.TextYAlignment.Top
+	box.MultiLine = true
+	box.Parent = row
+	corner(box, 6)
+	stroke(box, ui.theme.border, 0.5)
+	padding(box, 10, 8, 10, 8)
+
+	box.FocusLost:Connect(function()
+		if callback then
+			callback(box.Text)
+		end
+	end)
+
+	return box
+end
+
+function tabClass:SearchInput(labelText, placeholder, callback)
+	local box = self:Input(labelText, placeholder or "Search", callback)
+	box:GetPropertyChangedSignal("Text"):Connect(function()
+		if callback then
+			callback(box.Text)
+		end
+	end)
+	return box
+end
+
+function tabClass:Slider(labelText, minValue, maxValue, defaultValue, callback)
+	minValue = minValue or 0
+	maxValue = maxValue or 100
+	defaultValue = clamp(defaultValue or minValue, minValue, maxValue)
+
+	local value = defaultValue
+	local row = makeControlFrame(self.frame, 54)
+	local label = makeLabel(row, labelText, 110)
+	label.Size = UDim2.new(1, -72, 0, 22)
+
+	local valueLabel = Instance.new("TextLabel")
+	valueLabel.Size = UDim2.new(0, 64, 0, 22)
+	valueLabel.Position = UDim2.new(1, -64, 0, 0)
+	valueLabel.BackgroundTransparency = 1
+	valueLabel.Text = tostring(value)
+	valueLabel.TextColor3 = ui.theme.text
+	valueLabel.Font = Enum.Font.GothamSemibold
+	valueLabel.TextSize = 13
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+	valueLabel.Parent = row
+
+	local track = Instance.new("TextButton")
+	track.Size = UDim2.new(1, 0, 0, 18)
+	track.Position = UDim2.new(0, 0, 0, 30)
+	track.BackgroundColor3 = ui.theme.control
+	track.BorderSizePixel = 0
+	track.Text = ""
+	track.AutoButtonColor = false
+	track.Parent = row
+	corner(track, 6)
+	stroke(track, ui.theme.border, 0.5)
+
+	local fill = Instance.new("Frame")
+	fill.BackgroundColor3 = ui.theme.accent
+	fill.BorderSizePixel = 0
+	fill.Parent = track
+	corner(fill, 6)
+	ui:_bindTheme(fill, "BackgroundColor3", "accent")
+
+	local function setValue(newValue, emit)
+		value = clamp(newValue, minValue, maxValue)
+		local range = maxValue - minValue
+		local percent = range == 0 and 0 or (value - minValue) / range
+		fill.Size = UDim2.new(percent, 0, 1, 0)
+		valueLabel.Text = tostring(math.floor(value * 100 + 0.5) / 100)
+
+		if emit and callback then
+			callback(value)
+		end
+	end
+
+	local function setFromInput(input)
+		local x = clamp(input.Position.X - track.AbsolutePosition.X, 0, track.AbsoluteSize.X)
+		local percent = track.AbsoluteSize.X == 0 and 0 or x / track.AbsoluteSize.X
+		setValue(minValue + ((maxValue - minValue) * percent), true)
+	end
+
+	track.MouseButton1Down:Connect(function(x)
+		local trackWidth = track.AbsoluteSize.X
+		local percent = trackWidth == 0 and 0 or clamp(x - track.AbsolutePosition.X, 0, trackWidth) / trackWidth
+		setValue(minValue + ((maxValue - minValue) * percent), true)
+	end)
+
+	track.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement and uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+			setFromInput(input)
+		end
+	end)
+
+	setValue(value, false)
+
+	return {
+		SetValue = function(_, newValue)
+			setValue(newValue, true)
+		end,
+		GetValue = function()
+			return value
+		end,
+	}
+end
+
+function tabClass:Keybind(labelText, defaultKey, callback)
+	local currentKey = defaultKey or Enum.KeyCode.Unknown
+	local waiting = false
+	local row = makeControlFrame(self.frame, 44)
+	makeLabel(row, labelText, 110)
+
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -118, 1, 0)
+	btn.Position = UDim2.new(0, 118, 0, 0)
+	btn.BackgroundColor3 = ui.theme.control
+	btn.BorderSizePixel = 0
+	btn.TextColor3 = ui.theme.text
+	btn.Font = Enum.Font.GothamSemibold
+	btn.TextSize = 14
+	btn.Text = currentKey.Name
+	btn.AutoButtonColor = false
+	btn.Parent = row
+	corner(btn, 6)
+	stroke(btn, ui.theme.border, 0.5)
+	setControlHover(btn, ui.theme.control)
+
+	btn.MouseButton1Click:Connect(function()
+		waiting = true
+		btn.Text = "Press a key..."
+	end)
+
+	uis.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed or not waiting or input.UserInputType ~= Enum.UserInputType.Keyboard then
+			return
+		end
+
+		waiting = false
+		currentKey = input.KeyCode
+		btn.Text = currentKey.Name
+
+		if callback then
+			callback(currentKey)
+		end
+	end)
+
+	return {
+		SetValue = function(_, keyCode)
+			currentKey = keyCode
+			btn.Text = currentKey.Name
+		end,
+		GetValue = function()
+			return currentKey
+		end,
+	}
+end
+
+function tabClass:ColorInput(labelText, defaultColor, callback)
+	local color = defaultColor or ui.theme.accent
+	local row = makeControlFrame(self.frame, 44)
+	makeLabel(row, labelText, 110)
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(1, -168, 1, 0)
+	box.Position = UDim2.new(0, 118, 0, 0)
+	box.BackgroundColor3 = ui.theme.control
+	box.BorderSizePixel = 0
+	box.TextColor3 = ui.theme.text
+	box.PlaceholderColor3 = ui.theme.muted
+	box.PlaceholderText = "R,G,B"
+	box.Text = tostring(math.floor(color.R * 255)) .. "," .. tostring(math.floor(color.G * 255)) .. "," .. tostring(math.floor(color.B * 255))
+	box.ClearTextOnFocus = false
+	box.Font = Enum.Font.Gotham
+	box.TextSize = 14
+	box.TextXAlignment = Enum.TextXAlignment.Left
+	box.Parent = row
+	corner(box, 6)
+	stroke(box, ui.theme.border, 0.5)
+	padding(box, 10, 0, 10, 0)
+
+	local preview = Instance.new("Frame")
+	preview.Size = UDim2.new(0, 42, 1, 0)
+	preview.Position = UDim2.new(1, -42, 0, 0)
+	preview.BackgroundColor3 = color
+	preview.BorderSizePixel = 0
+	preview.Parent = row
+	corner(preview, 6)
+	stroke(preview, ui.theme.border, 0.5)
+
+	local function parseColor(text)
+		local r, g, b = string.match(text, "^(%d+)%s*,%s*(%d+)%s*,%s*(%d+)$")
+		if not r then
+			return nil
+		end
+
+		return Color3.fromRGB(clamp(tonumber(r), 0, 255), clamp(tonumber(g), 0, 255), clamp(tonumber(b), 0, 255))
+	end
+
+	box.FocusLost:Connect(function()
+		local nextColor = parseColor(box.Text)
+		if not nextColor then
+			return
+		end
+
+		color = nextColor
+		preview.BackgroundColor3 = color
+
+		if callback then
+			callback(color)
+		end
+	end)
+
+	return {
+		box = box,
+		GetValue = function()
+			return color
+		end,
+		SetValue = function(_, newColor)
+			if typeof(newColor) ~= "Color3" then
+				return
+			end
+			color = newColor
+			preview.BackgroundColor3 = color
+			box.Text = tostring(math.floor(color.R * 255)) .. "," .. tostring(math.floor(color.G * 255)) .. "," .. tostring(math.floor(color.B * 255))
+		end,
+	}
+end
+
+function tabClass:ThemePicker(labelText, customColor)
+	customColor = customColor or ui.theme.accent
+
+	local mode = self:Dropdown(labelText or "Theme", { "Default Blue", "Custom Color" }, "Default Blue", function(value)
+		if value == "Default Blue" then
+			ui:SetTheme("default")
+		else
+			ui:SetTheme(customColor)
+		end
+	end)
+
+	local colorInput = self:ColorInput("Custom Color", customColor, function(color)
+		customColor = color
+		mode:SetValue("Custom Color")
+		ui:SetTheme(color)
+	end)
+
+	return {
+		mode = mode,
+		colorInput = colorInput,
+		SetDefault = function()
+			mode:SetValue("Default Blue")
+			ui:SetTheme("default")
+		end,
+		SetCustom = function(_, color)
+			if typeof(color) == "Color3" then
+				customColor = color
+				colorInput:SetValue(color)
+			end
+			mode:SetValue("Custom Color")
+			ui:SetTheme(customColor)
+		end,
+	}
+end
+
+function tabClass:Divider(text)
+	local row = makeControlFrame(self.frame, text and 28 or 14)
+	row.BackgroundTransparency = 1
+
+	local line = Instance.new("Frame")
+	line.Size = UDim2.new(1, 0, 0, 1)
+	line.Position = UDim2.new(0, 0, 0.5, 0)
+	line.AnchorPoint = Vector2.new(0, 0.5)
+	line.BackgroundColor3 = ui.theme.border
+	line.BorderSizePixel = 0
+	line.Parent = row
+
+	if text and text ~= "" then
+		local label = Instance.new("TextLabel")
+		label.AutomaticSize = Enum.AutomaticSize.X
+		label.Size = UDim2.new(0, 0, 0, 18)
+		label.Position = UDim2.new(0, 12, 0.5, 0)
+		label.AnchorPoint = Vector2.new(0, 0.5)
+		label.BackgroundColor3 = ui.theme.bg
+		label.BorderSizePixel = 0
+		label.Text = text
+		label.TextColor3 = ui.theme.muted
+		label.Font = Enum.Font.GothamMedium
+		label.TextSize = 12
+		label.Parent = row
+		padding(label, 6, 0, 6, 0)
+	end
+
+	return row
 end
 
 function labelClass:SetText(text)
@@ -538,6 +996,7 @@ function tabClass:Dropdown(title, options, default, callback)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.Parent = menu
+	ui:_bindTheme(scroll, "ScrollBarImageColor3", "accent")
 
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 4)
@@ -634,6 +1093,9 @@ function multiDropdownClass:Refresh()
 		btn.Parent = self.list
 		corner(btn, 5)
 		padding(btn, 8, 0, 8, 0)
+		ui:_bindTheme(btn, "BackgroundColor3", "accentDark", "panelLight", function()
+			return self.values[option] == true
+		end)
 
 		btn.MouseButton1Click:Connect(function()
 			self.values[option] = not self.values[option]
@@ -693,6 +1155,7 @@ function tabClass:MultiDropdown(title, options, defaults, callback)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.Parent = menu
+	ui:_bindTheme(scroll, "ScrollBarImageColor3", "accent")
 
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 4)
