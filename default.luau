@@ -427,43 +427,82 @@ end
 function tabClass:Toggle(text, startvalue, callback)
 	local state = startvalue == true
 
-	local row = makeControlFrame(self.frame, 42)
+	local row = makeControlFrame(self.frame, 44)
 
-	local label = makeLabel(row, text)
-	label.Size = UDim2.new(1, -76, 1, 0)
+	local container = Instance.new("TextButton")
+	container.Size = UDim2.new(1, 0, 1, 0)
+	container.BackgroundColor3 = ui.theme.control
+	container.BorderSizePixel = 0
+	container.Text = ""
+	container.AutoButtonColor = false
+	container.Parent = row
+	corner(container, 6)
+	stroke(container, ui.theme.border, 0.5)
+	setControlHover(container, ui.theme.control)
+	padding(container, 12, 0, 12, 0)
 
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0, 66, 0, 30)
-	btn.Position = UDim2.new(1, -66, 0.5, -15)
-	btn.BackgroundColor3 = state and ui.theme.accent or ui.theme.control
-	btn.BorderSizePixel = 0
-	btn.TextColor3 = ui.theme.text
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 13
-	btn.Text = state and "ON" or "OFF"
-	btn.AutoButtonColor = false
-	btn.Parent = row
-	corner(btn, 6)
-	stroke(btn, ui.theme.border, 0.5)
-	ui:_bindTheme(btn, "BackgroundColor3", "accent", "control", function()
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -72, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = ui.theme.text
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 14
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = container
+
+	local switch = Instance.new("Frame")
+	switch.Size = UDim2.new(0, 44, 0, 24)
+	switch.Position = UDim2.new(1, -44, 0.5, -12)
+	switch.BackgroundColor3 = state and ui.theme.accent or ui.theme.panelLight
+	switch.BorderSizePixel = 0
+	switch.Parent = container
+	corner(switch, 999)
+	stroke(switch, ui.theme.border, 0.4)
+	ui:_bindTheme(switch, "BackgroundColor3", "accent", "panelLight", function()
 		return state
 	end)
 
-	btn.MouseButton1Click:Connect(function()
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 18, 0, 18)
+	knob.AnchorPoint = Vector2.new(0, 0.5)
+	knob.BackgroundColor3 = ui.theme.text
+	knob.BorderSizePixel = 0
+	knob.Parent = switch
+	corner(knob, 999)
+
+	local stateLabel = Instance.new("TextLabel")
+	stateLabel.Size = UDim2.new(0, 40, 1, 0)
+	stateLabel.Position = UDim2.new(1, -92, 0, 0)
+	stateLabel.BackgroundTransparency = 1
+	stateLabel.Text = state and "ON" or "OFF"
+	stateLabel.TextColor3 = ui.theme.muted
+	stateLabel.Font = Enum.Font.GothamBold
+	stateLabel.TextSize = 12
+	stateLabel.TextXAlignment = Enum.TextXAlignment.Right
+	stateLabel.Parent = container
+
+	local function syncToggle()
+		stateLabel.Text = state and "ON" or "OFF"
+		switch.BackgroundColor3 = state and ui.theme.accent or ui.theme.panelLight
+		knob.Position = UDim2.new(0, state and 23 or 3, 0.5, 0)
+	end
+
+	container.MouseButton1Click:Connect(function()
 		state = not state
-		btn.Text = state and "ON" or "OFF"
-		btn.BackgroundColor3 = state and ui.theme.accent or ui.theme.control
+		syncToggle()
 
 		if callback then
 			callback(state)
 		end
 	end)
 
+	syncToggle()
+
 	return {
 		SetValue = function(_, value)
 			state = value == true
-			btn.Text = state and "ON" or "OFF"
-			btn.BackgroundColor3 = state and ui.theme.accent or ui.theme.control
+			syncToggle()
 			ui:RefreshTheme()
 		end,
 		GetValue = function()
