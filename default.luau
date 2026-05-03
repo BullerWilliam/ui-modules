@@ -751,6 +751,8 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	local expanded = false
 	local draggingSquare = false
 	local draggingHue = false
+	local lastMeaningfulHue = hue
+	local syncVisuals
 
 	local row = makeControlFrame(self.frame, 44)
 	makeLabel(row, labelText, 110)
@@ -900,7 +902,22 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 		end
 	end
 
-	local function syncVisuals(shouldEmit)
+	local function setFromColor(nextColor, shouldEmit)
+		local nextHue, nextSaturation, nextValue = nextColor:ToHSV()
+
+		if nextSaturation > 0.001 and nextValue > 0.001 then
+			lastMeaningfulHue = nextHue
+		end
+
+		hue = (nextSaturation <= 0.001 or nextValue <= 0.001) and lastMeaningfulHue or nextHue
+		saturation = nextSaturation
+		value = nextValue
+		color = nextColor
+
+		syncVisuals(shouldEmit)
+	end
+
+	syncVisuals = function(shouldEmit)
 		color = Color3.fromHSV(hue, saturation, value)
 		preview.BackgroundColor3 = color
 		picker.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
@@ -985,11 +1002,10 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 			return
 		end
 
-		hue, saturation, value = nextColor:ToHSV()
-		syncVisuals(true)
+		setFromColor(nextColor, true)
 	end)
 
-	syncVisuals(false)
+	setFromColor(color, false)
 
 	return {
 		button = toggle,
@@ -1002,8 +1018,7 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 			if typeof(newColor) ~= "Color3" then
 				return
 			end
-			hue, saturation, value = newColor:ToHSV()
-			syncVisuals(false)
+			setFromColor(newColor, false)
 		end,
 		SetOpen = function(_, isOpen)
 			setExpanded(isOpen == true)
@@ -1022,10 +1037,15 @@ function tabClass:ThemePicker(labelText, customColor)
 		end
 	end)
 
-	local colorInput = self:ColorInput("Custom Color", customColor, function(color)
+	local colorInput
+	colorInput = self:ColorInput("Custom Color", customColor, function(color)
+		local wasOpen = colorInput and colorInput.panel and colorInput.panel.Visible
 		customColor = color
 		mode:SetValue("Custom Color")
 		ui:SetTheme(color)
+		if wasOpen and colorInput then
+			colorInput:SetOpen(true)
+		end
 	end)
 
 	return {
@@ -1036,12 +1056,16 @@ function tabClass:ThemePicker(labelText, customColor)
 			ui:SetTheme("default")
 		end,
 		SetCustom = function(_, color)
+			local wasOpen = colorInput and colorInput.panel and colorInput.panel.Visible
 			if typeof(color) == "Color3" then
 				customColor = color
 				colorInput:SetValue(color)
 			end
 			mode:SetValue("Custom Color")
 			ui:SetTheme(customColor)
+			if wasOpen then
+				colorInput:SetOpen(true)
+			end
 		end,
 	}
 end
