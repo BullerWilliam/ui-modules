@@ -565,30 +565,116 @@ function tabClass:Input(labelText, placeholder, callback)
 	return box
 end
 
-function tabClass:NumberInput(labelText, defaultValue, callback, minValue, maxValue)
+function tabClass:NumberInput(labelText, defaultValue, callback, minValue, maxValue, stepValue)
+	stepValue = stepValue or 1
+
+	local currentValue = defaultValue or 0
 	local box
-	box = self:Input(labelText, tostring(defaultValue or 0), function(text)
-		local value = normalizeNumber(text, defaultValue or 0)
+
+	local function clampValue(value)
 		if minValue then
 			value = math.max(minValue, value)
 		end
 		if maxValue then
 			value = math.min(maxValue, value)
 		end
-		box.Text = tostring(value)
+		return value
+	end
 
-		if callback then
-			callback(value)
+	local function formatValue(value)
+		if math.floor(value) == value then
+			return tostring(value)
 		end
+		return tostring(math.floor(value * 1000 + 0.5) / 1000)
+	end
+
+	local function applyValue(value, emit)
+		currentValue = clampValue(value)
+		box.Text = formatValue(currentValue)
+
+		if emit and callback then
+			callback(currentValue)
+		end
+	end
+
+	box = self:Input(labelText, tostring(defaultValue or 0), function(text)
+		local value = normalizeNumber(text, currentValue)
+		applyValue(value, true)
 	end)
 
-	box.Text = defaultValue ~= nil and tostring(defaultValue) or ""
+	local container = box.Parent
+	box.Size = UDim2.new(1, -180, 0, 30)
+
+	local downButton = Instance.new("TextButton")
+	downButton.Size = UDim2.new(0, 28, 0, 30)
+	downButton.Position = UDim2.new(1, -62, 0.5, -15)
+	downButton.BackgroundColor3 = ui.theme.panelLight
+	downButton.BorderSizePixel = 0
+	downButton.Text = "-"
+	downButton.TextColor3 = ui.theme.text
+	downButton.Font = Enum.Font.GothamBold
+	downButton.TextSize = 16
+	downButton.AutoButtonColor = false
+	downButton.Parent = container
+	corner(downButton, 6)
+	stroke(downButton, ui.theme.border, 0.5)
+	setControlHover(downButton, ui.theme.panelLight)
+
+	local upButton = Instance.new("TextButton")
+	upButton.Size = UDim2.new(0, 28, 0, 30)
+	upButton.Position = UDim2.new(1, -30, 0.5, -15)
+	upButton.BackgroundColor3 = ui.theme.panelLight
+	upButton.BorderSizePixel = 0
+	upButton.Text = "+"
+	upButton.TextColor3 = ui.theme.text
+	upButton.Font = Enum.Font.GothamBold
+	upButton.TextSize = 16
+	upButton.AutoButtonColor = false
+	upButton.Parent = container
+	corner(upButton, 6)
+	stroke(upButton, ui.theme.border, 0.5)
+	setControlHover(upButton, ui.theme.panelLight)
+
+	downButton.MouseButton1Click:Connect(function()
+		applyValue(currentValue - stepValue, true)
+	end)
+
+	upButton.MouseButton1Click:Connect(function()
+		applyValue(currentValue + stepValue, true)
+	end)
+
+	applyValue(currentValue, false)
 	return box
 end
 
 function tabClass:PasswordInput(labelText, placeholder, callback)
 	local realText = ""
+	local masked = true
+	local updatingText = false
 	local box = self:Input(labelText, placeholder or "Password")
+	local container = box.Parent
+	box.Size = UDim2.new(1, -168, 0, 30)
+
+	local toggleButton = Instance.new("TextButton")
+	toggleButton.Size = UDim2.new(0, 52, 0, 30)
+	toggleButton.Position = UDim2.new(1, -54, 0.5, -15)
+	toggleButton.BackgroundColor3 = ui.theme.panelLight
+	toggleButton.BorderSizePixel = 0
+	toggleButton.TextColor3 = ui.theme.muted
+	toggleButton.Font = Enum.Font.GothamBold
+	toggleButton.TextSize = 11
+	toggleButton.AutoButtonColor = false
+	toggleButton.Parent = container
+	corner(toggleButton, 6)
+	stroke(toggleButton, ui.theme.border, 0.5)
+	setControlHover(toggleButton, ui.theme.panelLight)
+
+	local function syncPasswordDisplay()
+		updatingText = true
+		box.Text = masked and string.rep("*", string.len(realText)) or realText
+		toggleButton.Text = masked and "SHOW" or "HIDE"
+		updatingText = false
+	end
 
 	box.FocusLost:Connect(function()
 		if callback then
@@ -597,32 +683,45 @@ function tabClass:PasswordInput(labelText, placeholder, callback)
 	end)
 
 	box:GetPropertyChangedSignal("Text"):Connect(function()
-		if not box:IsFocused() then
+		if updatingText or not box:IsFocused() then
 			return
 		end
 
 		local text = box.Text
-		if text == string.rep("*", string.len(realText)) then
-			return
+		if masked then
+			local maskedText = string.rep("*", string.len(realText))
+			if text == maskedText then
+				return
+			end
+
+			if string.len(text) < string.len(maskedText) then
+				realText = string.sub(realText, 1, string.len(text))
+			elseif string.len(text) > string.len(maskedText) then
+				realText ..= string.sub(text, string.len(maskedText) + 1)
+			end
+		else
+			realText = text
 		end
 
-		if string.len(text) < string.len(realText) then
-			realText = string.sub(realText, 1, string.len(text))
-		elseif string.len(text) > string.len(realText) then
-			realText ..= string.sub(text, string.len(realText) + 1)
-		end
-
-		box.Text = string.rep("*", string.len(realText))
+		syncPasswordDisplay()
 	end)
+
+	toggleButton.MouseButton1Click:Connect(function()
+		masked = not masked
+		syncPasswordDisplay()
+	end)
+
+	syncPasswordDisplay()
 
 	return {
 		box = box,
+		button = toggleButton,
 		GetValue = function()
 			return realText
 		end,
 		SetValue = function(_, value)
 			realText = tostring(value or "")
-			box.Text = string.rep("*", string.len(realText))
+			syncPasswordDisplay()
 		end,
 	}
 end
@@ -815,8 +914,26 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	local syncVisuals
 
 	local row = makeControlFrame(self.frame, 44)
-	makeLabel(row, labelText, 110)
 	row.ZIndex = 2
+
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(1, 0, 1, 0)
+	container.BackgroundColor3 = ui.theme.control
+	container.BorderSizePixel = 0
+	container.Parent = row
+	corner(container, 6)
+	stroke(container, ui.theme.border, 0.5)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 110, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = ui.theme.text
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 14
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = container
+	padding(label, 12, 0, 0, 0)
 
 	local shield = Instance.new("TextButton")
 	shield.Size = UDim2.new(1, 0, 0, 2000)
@@ -831,28 +948,28 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	shield.ZIndex = 10
 
 	local toggle = Instance.new("TextButton")
-	toggle.Size = UDim2.new(1, -168, 1, 0)
-	toggle.Position = UDim2.new(0, 118, 0, 0)
-	toggle.BackgroundColor3 = ui.theme.control
+	toggle.Size = UDim2.new(1, -176, 0, 30)
+	toggle.Position = UDim2.new(0, 114, 0.5, -15)
+	toggle.BackgroundColor3 = ui.theme.panelLight
 	toggle.BorderSizePixel = 0
 	toggle.TextColor3 = ui.theme.text
 	toggle.Font = Enum.Font.GothamSemibold
 	toggle.TextSize = 14
 	toggle.TextXAlignment = Enum.TextXAlignment.Left
 	toggle.AutoButtonColor = false
-	toggle.Parent = row
+	toggle.Parent = container
 	corner(toggle, 6)
 	stroke(toggle, ui.theme.border, 0.5)
 	padding(toggle, 10, 0, 10, 0)
-	setControlHover(toggle, ui.theme.control)
+	setControlHover(toggle, ui.theme.panelLight)
 	toggle.ZIndex = 2
 
 	local preview = Instance.new("Frame")
-	preview.Size = UDim2.new(0, 42, 1, 0)
-	preview.Position = UDim2.new(1, -42, 0, 0)
+	preview.Size = UDim2.new(0, 30, 0, 30)
+	preview.Position = UDim2.new(1, -30, 0.5, -15)
 	preview.BackgroundColor3 = color
 	preview.BorderSizePixel = 0
-	preview.Parent = row
+	preview.Parent = container
 	corner(preview, 6)
 	stroke(preview, ui.theme.border, 0.5)
 	preview.ZIndex = 2

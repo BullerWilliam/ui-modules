@@ -35,7 +35,7 @@ end)
 
 main:NumberInput("WalkSpeed", 16, function(value)
 	print("Speed:", value)
-end, 1, 100)
+end, 1, 100, 2)
 
 main:Slider("Volume", 0, 100, 50, function(value)
 	print("Volume:", value)
@@ -63,7 +63,7 @@ end)
 - Clear selected-tab styling.
 - Dividers with optional labels for sectioning content.
 - Buttons, toggles, labels, dropdowns, and multi dropdowns.
-- Input helpers for text, number, password, paragraph text, search, slider, keybind, and a visual color picker with RGB entry.
+- Input helpers for text, stepped number input, password input with show/hide, paragraph text, search, slider, keybind, and a visual color picker with RGB entry.
 - Labels return an object with `SetText(text)` and `GetText()`.
 - Themes can be changed with `ui:SetTheme("default")`, `ui:SetTheme(Color3.fromRGB(255, 90, 120))`, `ui:SetAccentColor(color)`, or `ui:UseDefaultTheme()`.
 - Dropdowns support `SetOptions(options)` and `SetValue(value)`.
@@ -73,7 +73,7 @@ end)
 
 ```luau
 tab:Input("Name", "Placeholder", callback)
-tab:NumberInput("Amount", 10, callback, 0, 100)
+tab:NumberInput("Amount", 10, callback, 0, 100, 5)
 tab:PasswordInput("Password", "Secret", callback)
 tab:TextArea("Notes", "Write more text", callback)
 tab:SearchInput("Search", "Find something", callback)
