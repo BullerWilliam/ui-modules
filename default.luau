@@ -206,6 +206,16 @@ local function makeLabel(parent, text, width)
 	return label
 end
 
+local function setZIndexRecursive(root, zIndex)
+	if root:IsA("GuiObject") then
+		root.ZIndex = zIndex
+	end
+
+	for _, child in ipairs(root:GetChildren()) do
+		setZIndexRecursive(child, zIndex)
+	end
+end
+
 uis.InputChanged:Connect(function(input)
 	if ui.dragWindow and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - ui.dragStart
@@ -756,6 +766,19 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 
 	local row = makeControlFrame(self.frame, 44)
 	makeLabel(row, labelText, 110)
+	row.ZIndex = 2
+
+	local shield = Instance.new("TextButton")
+	shield.Size = UDim2.new(1, 0, 0, 2000)
+	shield.Position = UDim2.new(0, 0, 0, 44)
+	shield.BackgroundTransparency = 1
+	shield.BorderSizePixel = 0
+	shield.Text = ""
+	shield.Visible = false
+	shield.Active = true
+	shield.AutoButtonColor = false
+	shield.Parent = row
+	shield.ZIndex = 10
 
 	local toggle = Instance.new("TextButton")
 	toggle.Size = UDim2.new(1, -168, 1, 0)
@@ -772,6 +795,7 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	stroke(toggle, ui.theme.border, 0.5)
 	padding(toggle, 10, 0, 10, 0)
 	setControlHover(toggle, ui.theme.control)
+	toggle.ZIndex = 2
 
 	local preview = Instance.new("Frame")
 	preview.Size = UDim2.new(0, 42, 1, 0)
@@ -781,6 +805,7 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	preview.Parent = row
 	corner(preview, 6)
 	stroke(preview, ui.theme.border, 0.5)
+	preview.ZIndex = 2
 
 	local panel = Instance.new("Frame")
 	panel.Size = UDim2.new(1, -118, 0, 148)
@@ -788,15 +813,33 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	panel.BackgroundColor3 = ui.theme.panel
 	panel.BorderSizePixel = 0
 	panel.Visible = false
+	panel.Active = true
 	panel.Parent = row
 	corner(panel, 6)
 	stroke(panel, ui.theme.border, 0.35)
 	padding(panel, 8, 8, 8, 8)
+	setZIndexRecursive(panel, 20)
+
+	local closeButton = Instance.new("TextButton")
+	closeButton.Size = UDim2.new(0, 24, 0, 24)
+	closeButton.Position = UDim2.new(1, -24, 0, 0)
+	closeButton.BackgroundColor3 = ui.theme.control
+	closeButton.BorderSizePixel = 0
+	closeButton.Text = "X"
+	closeButton.TextColor3 = ui.theme.text
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.TextSize = 12
+	closeButton.AutoButtonColor = false
+	closeButton.Parent = panel
+	corner(closeButton, 6)
+	stroke(closeButton, ui.theme.border, 0.5)
+	setControlHover(closeButton, ui.theme.control)
 
 	local picker = Instance.new("Frame")
 	picker.Size = UDim2.new(1, 0, 0, 80)
 	picker.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
 	picker.BorderSizePixel = 0
+	picker.Active = true
 	picker.Parent = panel
 	corner(picker, 6)
 
@@ -817,7 +860,7 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	local blackGradient = Instance.new("Frame")
 	blackGradient.Size = UDim2.new(1, 0, 1, 0)
 	blackGradient.BackgroundColor3 = Color3.new(0, 0, 0)
-	blackGradient.BackgroundTransparency = 1
+	blackGradient.BackgroundTransparency = 0
 	blackGradient.BorderSizePixel = 0
 	blackGradient.Parent = picker
 	corner(blackGradient, 6)
@@ -844,6 +887,7 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	hueBar.Position = UDim2.new(0, 0, 0, 92)
 	hueBar.BackgroundColor3 = Color3.new(1, 1, 1)
 	hueBar.BorderSizePixel = 0
+	hueBar.Active = true
 	hueBar.Parent = panel
 	corner(hueBar, 999)
 
@@ -893,7 +937,10 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	local function setExpanded(isExpanded)
 		expanded = isExpanded
 		panel.Visible = isExpanded
-		row.Size = UDim2.new(1, 0, 0, isExpanded and 198 or 44)
+		shield.Visible = isExpanded
+		if isExpanded then
+			setZIndexRecursive(panel, 20)
+		end
 	end
 
 	local function emit()
@@ -960,6 +1007,10 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 
 	toggle.MouseButton1Click:Connect(function()
 		setExpanded(not expanded)
+	end)
+
+	closeButton.MouseButton1Click:Connect(function()
+		setExpanded(false)
 	end)
 
 	picker.InputBegan:Connect(function(input)
@@ -1148,7 +1199,12 @@ end
 function dropdownClass:SetOpen(isOpen)
 	self.open = isOpen
 	self.menu.Visible = isOpen
-	self.container.Size = UDim2.new(1, 0, 0, isOpen and 178 or 44)
+	if self.shield then
+		self.shield.Visible = isOpen
+	end
+	if isOpen then
+		setZIndexRecursive(self.menu, 20)
+	end
 	self.button.Text = self.value and (self.title .. ": " .. tostring(self.value)) or (self.title .. (isOpen and " ^" or " v"))
 end
 
@@ -1184,6 +1240,18 @@ end
 function tabClass:Dropdown(title, options, default, callback)
 	local container = makeControlFrame(self.frame, 44)
 
+	local shield = Instance.new("TextButton")
+	shield.Size = UDim2.new(1, 0, 0, 2000)
+	shield.Position = UDim2.new(0, 0, 0, 44)
+	shield.BackgroundTransparency = 1
+	shield.BorderSizePixel = 0
+	shield.Text = ""
+	shield.Visible = false
+	shield.Active = true
+	shield.AutoButtonColor = false
+	shield.Parent = container
+	shield.ZIndex = 10
+
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(1, 0, 0, 44)
 	button.BackgroundColor3 = ui.theme.control
@@ -1198,6 +1266,7 @@ function tabClass:Dropdown(title, options, default, callback)
 	stroke(button, ui.theme.border, 0.5)
 	padding(button, 10, 0, 10, 0)
 	setControlHover(button, ui.theme.control)
+	button.ZIndex = 15
 
 	local menu = Instance.new("Frame")
 	menu.Size = UDim2.new(1, 0, 0, 126)
@@ -1208,6 +1277,7 @@ function tabClass:Dropdown(title, options, default, callback)
 	menu.Parent = container
 	corner(menu, 6)
 	stroke(menu, ui.theme.border, 0.35)
+	setZIndexRecursive(menu, 20)
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -8, 1, -8)
@@ -1232,6 +1302,7 @@ function tabClass:Dropdown(title, options, default, callback)
 	drop.title = title
 	drop.callback = callback
 	drop.container = container
+	drop.shield = shield
 	drop.open = false
 
 	button.MouseButton1Click:Connect(function()
@@ -1280,7 +1351,12 @@ end
 function multiDropdownClass:SetOpen(isOpen)
 	self.open = isOpen
 	self.menu.Visible = isOpen
-	self.container.Size = UDim2.new(1, 0, 0, isOpen and 210 or 44)
+	if self.shield then
+		self.shield.Visible = isOpen
+	end
+	if isOpen then
+		setZIndexRecursive(self.menu, 20)
+	end
 	self.button.Text = self:_selectedText()
 end
 
@@ -1342,6 +1418,18 @@ end
 function tabClass:MultiDropdown(title, options, defaults, callback)
 	local container = makeControlFrame(self.frame, 44)
 
+	local shield = Instance.new("TextButton")
+	shield.Size = UDim2.new(1, 0, 0, 2000)
+	shield.Position = UDim2.new(0, 0, 0, 44)
+	shield.BackgroundTransparency = 1
+	shield.BorderSizePixel = 0
+	shield.Text = ""
+	shield.Visible = false
+	shield.Active = true
+	shield.AutoButtonColor = false
+	shield.Parent = container
+	shield.ZIndex = 10
+
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(1, 0, 0, 44)
 	button.BackgroundColor3 = ui.theme.control
@@ -1357,6 +1445,7 @@ function tabClass:MultiDropdown(title, options, defaults, callback)
 	stroke(button, ui.theme.border, 0.5)
 	padding(button, 10, 0, 10, 0)
 	setControlHover(button, ui.theme.control)
+	button.ZIndex = 15
 
 	local menu = Instance.new("Frame")
 	menu.Size = UDim2.new(1, 0, 0, 158)
@@ -1367,6 +1456,7 @@ function tabClass:MultiDropdown(title, options, defaults, callback)
 	menu.Parent = container
 	corner(menu, 6)
 	stroke(menu, ui.theme.border, 0.35)
+	setZIndexRecursive(menu, 20)
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -8, 1, -8)
@@ -1391,6 +1481,7 @@ function tabClass:MultiDropdown(title, options, defaults, callback)
 	drop.title = title
 	drop.callback = callback
 	drop.container = container
+	drop.shield = shield
 	drop.open = false
 	drop.options = options or {}
 	drop.values = {}
