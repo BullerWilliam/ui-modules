@@ -519,18 +519,29 @@ function tabClass:Input(labelText, placeholder, callback)
 	end
 
 	local row = makeControlFrame(self.frame, 44)
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 8)
-	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-	layout.Parent = row
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(1, 0, 1, 0)
+	container.BackgroundColor3 = ui.theme.control
+	container.BorderSizePixel = 0
+	container.Parent = row
+	corner(container, 6)
+	stroke(container, ui.theme.border, 0.5)
 
-	makeLabel(row, labelText, 110)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 110, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = ui.theme.text
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 14
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = container
+	padding(label, 12, 0, 0, 0)
 
 	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(1, -118, 1, 0)
-	box.BackgroundColor3 = ui.theme.control
+	box.Size = UDim2.new(1, -126, 0, 30)
+	box.Position = UDim2.new(0, 114, 0.5, -15)
+	box.BackgroundColor3 = ui.theme.panelLight
 	box.BorderSizePixel = 0
 	box.TextColor3 = ui.theme.text
 	box.PlaceholderColor3 = ui.theme.muted
@@ -540,7 +551,7 @@ function tabClass:Input(labelText, placeholder, callback)
 	box.Font = Enum.Font.Gotham
 	box.TextSize = 14
 	box.TextXAlignment = Enum.TextXAlignment.Left
-	box.Parent = row
+	box.Parent = container
 	corner(box, 6)
 	stroke(box, ui.theme.border, 0.5)
 	padding(box, 10, 0, 10, 0)
