@@ -747,26 +747,29 @@ end
 
 function tabClass:ColorInput(labelText, defaultColor, callback)
 	local color = defaultColor or ui.theme.accent
+	local hue, saturation, value = color:ToHSV()
+	local expanded = false
+	local draggingSquare = false
+	local draggingHue = false
+
 	local row = makeControlFrame(self.frame, 44)
 	makeLabel(row, labelText, 110)
 
-	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(1, -168, 1, 0)
-	box.Position = UDim2.new(0, 118, 0, 0)
-	box.BackgroundColor3 = ui.theme.control
-	box.BorderSizePixel = 0
-	box.TextColor3 = ui.theme.text
-	box.PlaceholderColor3 = ui.theme.muted
-	box.PlaceholderText = "R,G,B"
-	box.Text = tostring(math.floor(color.R * 255)) .. "," .. tostring(math.floor(color.G * 255)) .. "," .. tostring(math.floor(color.B * 255))
-	box.ClearTextOnFocus = false
-	box.Font = Enum.Font.Gotham
-	box.TextSize = 14
-	box.TextXAlignment = Enum.TextXAlignment.Left
-	box.Parent = row
-	corner(box, 6)
-	stroke(box, ui.theme.border, 0.5)
-	padding(box, 10, 0, 10, 0)
+	local toggle = Instance.new("TextButton")
+	toggle.Size = UDim2.new(1, -168, 1, 0)
+	toggle.Position = UDim2.new(0, 118, 0, 0)
+	toggle.BackgroundColor3 = ui.theme.control
+	toggle.BorderSizePixel = 0
+	toggle.TextColor3 = ui.theme.text
+	toggle.Font = Enum.Font.GothamSemibold
+	toggle.TextSize = 14
+	toggle.TextXAlignment = Enum.TextXAlignment.Left
+	toggle.AutoButtonColor = false
+	toggle.Parent = row
+	corner(toggle, 6)
+	stroke(toggle, ui.theme.border, 0.5)
+	padding(toggle, 10, 0, 10, 0)
+	setControlHover(toggle, ui.theme.control)
 
 	local preview = Instance.new("Frame")
 	preview.Size = UDim2.new(0, 42, 1, 0)
@@ -777,6 +780,144 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	corner(preview, 6)
 	stroke(preview, ui.theme.border, 0.5)
 
+	local panel = Instance.new("Frame")
+	panel.Size = UDim2.new(1, -118, 0, 148)
+	panel.Position = UDim2.new(0, 118, 0, 50)
+	panel.BackgroundColor3 = ui.theme.panel
+	panel.BorderSizePixel = 0
+	panel.Visible = false
+	panel.Parent = row
+	corner(panel, 6)
+	stroke(panel, ui.theme.border, 0.35)
+	padding(panel, 8, 8, 8, 8)
+
+	local picker = Instance.new("Frame")
+	picker.Size = UDim2.new(1, 0, 0, 80)
+	picker.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+	picker.BorderSizePixel = 0
+	picker.Parent = panel
+	corner(picker, 6)
+
+	local whiteGradient = Instance.new("Frame")
+	whiteGradient.Size = UDim2.new(1, 0, 1, 0)
+	whiteGradient.BackgroundColor3 = Color3.new(1, 1, 1)
+	whiteGradient.BorderSizePixel = 0
+	whiteGradient.Parent = picker
+	corner(whiteGradient, 6)
+
+	local whiteOverlay = Instance.new("UIGradient")
+	whiteOverlay.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(1, Color3.fromHSV(hue, 1, 1)),
+	})
+	whiteOverlay.Parent = whiteGradient
+
+	local blackGradient = Instance.new("Frame")
+	blackGradient.Size = UDim2.new(1, 0, 1, 0)
+	blackGradient.BackgroundColor3 = Color3.new(0, 0, 0)
+	blackGradient.BackgroundTransparency = 1
+	blackGradient.BorderSizePixel = 0
+	blackGradient.Parent = picker
+	corner(blackGradient, 6)
+
+	local blackOverlay = Instance.new("UIGradient")
+	blackOverlay.Rotation = 90
+	blackOverlay.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	blackOverlay.Parent = blackGradient
+
+	local pickerCursor = Instance.new("Frame")
+	pickerCursor.Size = UDim2.new(0, 10, 0, 10)
+	pickerCursor.AnchorPoint = Vector2.new(0.5, 0.5)
+	pickerCursor.BackgroundColor3 = Color3.new(1, 1, 1)
+	pickerCursor.BorderSizePixel = 0
+	pickerCursor.Parent = picker
+	corner(pickerCursor, 999)
+	stroke(pickerCursor, Color3.new(0, 0, 0), 0.2)
+
+	local hueBar = Instance.new("Frame")
+	hueBar.Size = UDim2.new(1, 0, 0, 14)
+	hueBar.Position = UDim2.new(0, 0, 0, 92)
+	hueBar.BackgroundColor3 = Color3.new(1, 1, 1)
+	hueBar.BorderSizePixel = 0
+	hueBar.Parent = panel
+	corner(hueBar, 999)
+
+	local hueGradient = Instance.new("UIGradient")
+	hueGradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 1, 1)),
+		ColorSequenceKeypoint.new(0.16, Color3.fromHSV(0.16, 1, 1)),
+		ColorSequenceKeypoint.new(0.33, Color3.fromHSV(0.33, 1, 1)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromHSV(0.5, 1, 1)),
+		ColorSequenceKeypoint.new(0.66, Color3.fromHSV(0.66, 1, 1)),
+		ColorSequenceKeypoint.new(0.83, Color3.fromHSV(0.83, 1, 1)),
+		ColorSequenceKeypoint.new(1, Color3.fromHSV(1, 1, 1)),
+	})
+	hueGradient.Parent = hueBar
+
+	local hueCursor = Instance.new("Frame")
+	hueCursor.Size = UDim2.new(0, 8, 1, 6)
+	hueCursor.AnchorPoint = Vector2.new(0.5, 0.5)
+	hueCursor.Position = UDim2.new(hue, 0, 0.5, 0)
+	hueCursor.BackgroundColor3 = Color3.new(1, 1, 1)
+	hueCursor.BorderSizePixel = 0
+	hueCursor.Parent = hueBar
+	corner(hueCursor, 999)
+	stroke(hueCursor, Color3.new(0, 0, 0), 0.2)
+
+	local rgbBox = Instance.new("TextBox")
+	rgbBox.Size = UDim2.new(1, 0, 0, 30)
+	rgbBox.Position = UDim2.new(0, 0, 0, 114)
+	rgbBox.BackgroundColor3 = ui.theme.control
+	rgbBox.BorderSizePixel = 0
+	rgbBox.TextColor3 = ui.theme.text
+	rgbBox.PlaceholderColor3 = ui.theme.muted
+	rgbBox.PlaceholderText = "R,G,B"
+	rgbBox.ClearTextOnFocus = false
+	rgbBox.Font = Enum.Font.Gotham
+	rgbBox.TextSize = 14
+	rgbBox.TextXAlignment = Enum.TextXAlignment.Left
+	rgbBox.Parent = panel
+	corner(rgbBox, 6)
+	stroke(rgbBox, ui.theme.border, 0.5)
+	padding(rgbBox, 10, 0, 10, 0)
+
+	local function colorToText(nextColor)
+		return tostring(math.floor(nextColor.R * 255 + 0.5)) .. "," .. tostring(math.floor(nextColor.G * 255 + 0.5)) .. "," .. tostring(math.floor(nextColor.B * 255 + 0.5))
+	end
+
+	local function setExpanded(isExpanded)
+		expanded = isExpanded
+		panel.Visible = isExpanded
+		row.Size = UDim2.new(1, 0, 0, isExpanded and 198 or 44)
+	end
+
+	local function emit()
+		if callback then
+			callback(color)
+		end
+	end
+
+	local function syncVisuals(shouldEmit)
+		color = Color3.fromHSV(hue, saturation, value)
+		preview.BackgroundColor3 = color
+		picker.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+		whiteOverlay.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+			ColorSequenceKeypoint.new(1, Color3.fromHSV(hue, 1, 1)),
+		})
+		pickerCursor.Position = UDim2.new(saturation, 0, 1 - value, 0)
+		hueCursor.Position = UDim2.new(hue, 0, 0.5, 0)
+		rgbBox.Text = colorToText(color)
+		toggle.Text = colorToText(color)
+
+		if shouldEmit then
+			emit()
+		end
+	end
+
 	local function parseColor(text)
 		local r, g, b = string.match(text, "^(%d+)%s*,%s*(%d+)%s*,%s*(%d+)$")
 		if not r then
@@ -786,22 +927,74 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 		return Color3.fromRGB(clamp(tonumber(r), 0, 255), clamp(tonumber(g), 0, 255), clamp(tonumber(b), 0, 255))
 	end
 
-	box.FocusLost:Connect(function()
-		local nextColor = parseColor(box.Text)
-		if not nextColor then
-			return
-		end
+	local function updateFromSquare(input)
+		local x = clamp(input.Position.X - picker.AbsolutePosition.X, 0, picker.AbsoluteSize.X)
+		local y = clamp(input.Position.Y - picker.AbsolutePosition.Y, 0, picker.AbsoluteSize.Y)
+		saturation = picker.AbsoluteSize.X == 0 and 0 or x / picker.AbsoluteSize.X
+		value = 1 - (picker.AbsoluteSize.Y == 0 and 0 or y / picker.AbsoluteSize.Y)
+		syncVisuals(true)
+	end
 
-		color = nextColor
-		preview.BackgroundColor3 = color
+	local function updateFromHue(input)
+		local x = clamp(input.Position.X - hueBar.AbsolutePosition.X, 0, hueBar.AbsoluteSize.X)
+		hue = hueBar.AbsoluteSize.X == 0 and 0 or x / hueBar.AbsoluteSize.X
+		syncVisuals(true)
+	end
 
-		if callback then
-			callback(color)
+	toggle.MouseButton1Click:Connect(function()
+		setExpanded(not expanded)
+	end)
+
+	picker.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			draggingSquare = true
+			updateFromSquare(input)
 		end
 	end)
 
+	hueBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			draggingHue = true
+			updateFromHue(input)
+		end
+	end)
+
+	uis.InputChanged:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseMovement then
+			return
+		end
+
+		if draggingSquare then
+			updateFromSquare(input)
+		elseif draggingHue then
+			updateFromHue(input)
+		end
+	end)
+
+	uis.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			draggingSquare = false
+			draggingHue = false
+		end
+	end)
+
+	rgbBox.FocusLost:Connect(function()
+		local nextColor = parseColor(rgbBox.Text)
+		if not nextColor then
+			rgbBox.Text = colorToText(color)
+			return
+		end
+
+		hue, saturation, value = nextColor:ToHSV()
+		syncVisuals(true)
+	end)
+
+	syncVisuals(false)
+
 	return {
-		box = box,
+		button = toggle,
+		box = rgbBox,
+		panel = panel,
 		GetValue = function()
 			return color
 		end,
@@ -809,9 +1002,11 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 			if typeof(newColor) ~= "Color3" then
 				return
 			end
-			color = newColor
-			preview.BackgroundColor3 = color
-			box.Text = tostring(math.floor(color.R * 255)) .. "," .. tostring(math.floor(color.G * 255)) .. "," .. tostring(math.floor(color.B * 255))
+			hue, saturation, value = newColor:ToHSV()
+			syncVisuals(false)
+		end,
+		SetOpen = function(_, isOpen)
+			setExpanded(isOpen == true)
 		end,
 	}
 end

@@ -63,7 +63,7 @@ end)
 - Clear selected-tab styling.
 - Dividers with optional labels for sectioning content.
 - Buttons, toggles, labels, dropdowns, and multi dropdowns.
-- Input helpers for text, number, password, paragraph text, search, slider, keybind, and RGB color values.
+- Input helpers for text, number, password, paragraph text, search, slider, keybind, and a visual color picker with RGB entry.
 - Labels return an object with `SetText(text)` and `GetText()`.
 - Themes can be changed with `ui:SetTheme("default")`, `ui:SetTheme(Color3.fromRGB(255, 90, 120))`, `ui:SetAccentColor(color)`, or `ui:UseDefaultTheme()`.
 - Dropdowns support `SetOptions(options)` and `SetValue(value)`.
