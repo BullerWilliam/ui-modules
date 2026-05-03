@@ -124,8 +124,8 @@ end
 function windowClass:CreateTab(name)
 
 	local tabBtn = Instance.new("TextButton")
-	tabBtn.Size = UDim2.new(0,90,1,0)
-	tabBtn.Position = UDim2.new(0,#self.tabButtons*90,0,0)
+	tabBtn.Size = UDim2.new(0,50,1,0)
+	tabBtn.Position = UDim2.new(0,#self.tabButtons*50,0,0)
 	tabBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
 	tabBtn.TextColor3 = Color3.new(1,1,1)
 	tabBtn.Text = name

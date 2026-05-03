@@ -1,0 +1,1 @@
+use "local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/BullerWilliam/ui-modules/refs/heads/main/default.luau"))()" to load ui module in
