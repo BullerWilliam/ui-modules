@@ -49,8 +49,16 @@ main:Dropdown("Mode", { "Easy", "Normal", "Hard" }, "Normal", function(value)
 	print("Mode:", value)
 end)
 
+main:PlayerInput("Target", game.Players.LocalPlayer, function(player)
+	print("Target:", player and player.Name or "None")
+end)
+
 settings:MultiDropdown("Features", { "ESP", "Speed", "Fly", "Noclip" }, { "ESP" }, function(values)
 	print("Selected:", table.concat(values, ", "))
+end)
+
+settings:MultiPlayerInput("Friends", { game.Players.LocalPlayer }, function(players)
+	print("Players:", #players)
 end)
 ```
 
@@ -63,6 +71,7 @@ end)
 - Clear selected-tab styling.
 - Dividers with optional labels for sectioning content.
 - Buttons, toggles, labels, dropdowns, and multi dropdowns.
+- Player-aware single and multi player selectors that stay updated as players join or leave.
 - Input helpers for text, stepped number input, password input with show/hide, paragraph text, search, slider, keybind, and a visual color picker with RGB entry.
 - Labels return an object with `SetText(text)` and `GetText()`.
 - Themes can be changed with `ui:SetTheme("default")`, `ui:SetTheme(Color3.fromRGB(255, 90, 120))`, `ui:SetAccentColor(color)`, or `ui:UseDefaultTheme()`.
@@ -83,4 +92,6 @@ tab:ColorInput("Accent", Color3.fromRGB(75, 139, 255), callback)
 tab:ThemePicker("Theme", Color3.fromRGB(255, 90, 120))
 tab:Divider()
 tab:Divider("Section")
+tab:PlayerInput("Target", game.Players.LocalPlayer, callback)
+tab:MultiPlayerInput("Targets", { game.Players.LocalPlayer }, callback)
 ```

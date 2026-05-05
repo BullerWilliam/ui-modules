@@ -70,6 +70,34 @@ local function normalizeNumber(text, fallback)
 	return value
 end
 
+local function getSortedPlayers()
+	local players = plrs:GetPlayers()
+	table.sort(players, function(a, b)
+		return string.lower(a.Name) < string.lower(b.Name)
+	end)
+	return players
+end
+
+local function getPlayerNames()
+	local names = {}
+	for _, player in ipairs(getSortedPlayers()) do
+		table.insert(names, player.Name)
+	end
+	return names
+end
+
+local function resolvePlayer(value)
+	if typeof(value) == "Instance" and value:IsA("Player") then
+		return value
+	end
+
+	if type(value) == "string" then
+		return plrs:FindFirstChild(value)
+	end
+
+	return nil
+end
+
 local function updateScale()
 	local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
 	guiScale.Scale = clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.78, 1.12)
@@ -1487,6 +1515,67 @@ function tabClass:Dropdown(title, options, default, callback)
 	return drop
 end
 
+function tabClass:PlayerInput(title, defaultPlayer, callback)
+	local currentPlayer = resolvePlayer(defaultPlayer)
+	local dropdown
+	local originalSetValue
+
+	local function refreshOptions()
+		local names = getPlayerNames()
+		dropdown:SetOptions(names)
+
+		if currentPlayer and not resolvePlayer(currentPlayer) then
+			currentPlayer = nil
+		end
+
+		if currentPlayer then
+			dropdown.value = currentPlayer.Name
+			dropdown.button.Text = title .. ": " .. currentPlayer.Name
+		elseif #names == 0 then
+			dropdown.value = nil
+			dropdown.button.Text = title .. ": None"
+		else
+			dropdown.button.Text = title .. " v"
+		end
+	end
+
+	dropdown = self:Dropdown(title, getPlayerNames(), currentPlayer and currentPlayer.Name or nil, function(value)
+		currentPlayer = resolvePlayer(value)
+		if callback then
+			callback(currentPlayer)
+		end
+	end)
+
+	plrs.PlayerAdded:Connect(refreshOptions)
+	plrs.PlayerRemoving:Connect(function(player)
+		if currentPlayer == player then
+			currentPlayer = nil
+			if callback then
+				callback(nil)
+			end
+		end
+		refreshOptions()
+	end)
+
+	originalSetValue = dropdown.SetValue
+	dropdown.SetValue = function(self, value)
+		currentPlayer = resolvePlayer(value)
+		if currentPlayer then
+			originalSetValue(self, currentPlayer.Name)
+		else
+			self.value = nil
+			self.button.Text = title .. " v"
+		end
+	end
+
+	dropdown.GetValue = function()
+		return currentPlayer
+	end
+
+	refreshOptions()
+	return dropdown
+end
+
 function multiDropdownClass:_selectedText()
 	local selected = {}
 
@@ -1660,6 +1749,93 @@ function tabClass:MultiDropdown(title, options, defaults, callback)
 	drop:SetValue(defaults or {})
 
 	return drop
+end
+
+function tabClass:MultiPlayerInput(title, defaultPlayers, callback)
+	local currentPlayers = {}
+	local dropdown
+	local originalSetValue
+
+	for _, playerValue in ipairs(defaultPlayers or {}) do
+		local player = resolvePlayer(playerValue)
+		if player then
+			table.insert(currentPlayers, player)
+		end
+	end
+
+	local function syncCurrentPlayers()
+		local nextPlayers = {}
+		for _, player in ipairs(currentPlayers) do
+			if resolvePlayer(player) then
+				table.insert(nextPlayers, player)
+			end
+		end
+		currentPlayers = nextPlayers
+	end
+
+	local function refreshOptions()
+		syncCurrentPlayers()
+		dropdown:SetOptions(getPlayerNames())
+		dropdown.values = {}
+		for _, player in ipairs(currentPlayers) do
+			dropdown.values[player.Name] = true
+		end
+		dropdown:Refresh()
+	end
+
+	dropdown = self:MultiDropdown(title, getPlayerNames(), currentPlayers, function(values)
+		local players = {}
+		for _, value in ipairs(values) do
+			local player = resolvePlayer(value)
+			if player then
+				table.insert(players, player)
+			end
+		end
+		currentPlayers = players
+		if callback then
+			callback(players)
+		end
+	end)
+
+	plrs.PlayerAdded:Connect(refreshOptions)
+	plrs.PlayerRemoving:Connect(function(player)
+		local changed = false
+		local nextPlayers = {}
+		for _, currentPlayer in ipairs(currentPlayers) do
+			if currentPlayer ~= player then
+				table.insert(nextPlayers, currentPlayer)
+			else
+				changed = true
+			end
+		end
+		currentPlayers = nextPlayers
+		refreshOptions()
+		if changed and callback then
+			callback(currentPlayers)
+		end
+	end)
+
+	originalSetValue = dropdown.SetValue
+	dropdown.SetValue = function(self, values)
+		local players = {}
+		local playerNames = {}
+		for _, value in ipairs(values or {}) do
+			local player = resolvePlayer(value)
+			if player then
+				table.insert(players, player)
+				table.insert(playerNames, player.Name)
+			end
+		end
+		currentPlayers = players
+		originalSetValue(self, playerNames)
+	end
+
+	dropdown.GetValue = function()
+		return currentPlayers
+	end
+
+	refreshOptions()
+	return dropdown
 end
 
 return ui
