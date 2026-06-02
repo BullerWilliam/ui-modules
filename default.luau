@@ -53,6 +53,9 @@ dropdownClass.__index = dropdownClass
 local multiDropdownClass = {}
 multiDropdownClass.__index = multiDropdownClass
 
+local dropdownListClass = {}
+dropdownListClass.__index = dropdownListClass
+
 local function clamp(value, minValue, maxValue)
 	return math.max(minValue, math.min(maxValue, value))
 end
@@ -68,6 +71,23 @@ local function normalizeNumber(text, fallback)
 		return fallback
 	end
 	return value
+end
+
+local function cloneArray(values)
+	local copy = {}
+	for _, value in ipairs(values or {}) do
+		table.insert(copy, value)
+	end
+	return copy
+end
+
+local function valueExists(values, target)
+	for _, value in ipairs(values or {}) do
+		if value == target then
+			return true
+		end
+	end
+	return false
 end
 
 local function getSortedPlayers()
@@ -1003,7 +1023,7 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	preview.ZIndex = 2
 
 	local panel = Instance.new("Frame")
-	panel.Size = UDim2.new(1, -118, 0, 148)
+	panel.Size = UDim2.new(1, -118, 0, 282)
 	panel.Position = UDim2.new(0, 118, 0, 50)
 	panel.BackgroundColor3 = ui.theme.panel
 	panel.BorderSizePixel = 0
@@ -1031,7 +1051,7 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	setControlHover(closeButton, ui.theme.control)
 
 	local picker = Instance.new("Frame")
-	picker.Size = UDim2.new(1, 0, 0, 80)
+	picker.Size = UDim2.new(1, 0, 0, 128)
 	picker.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
 	picker.BorderSizePixel = 0
 	picker.Active = true
@@ -1055,7 +1075,6 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	local blackGradient = Instance.new("Frame")
 	blackGradient.Size = UDim2.new(1, 0, 1, 0)
 	blackGradient.BackgroundColor3 = Color3.new(0, 0, 0)
-	blackGradient.BackgroundTransparency = 0
 	blackGradient.BorderSizePixel = 0
 	blackGradient.Parent = picker
 	corner(blackGradient, 6)
@@ -1069,7 +1088,7 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	blackOverlay.Parent = blackGradient
 
 	local pickerCursor = Instance.new("Frame")
-	pickerCursor.Size = UDim2.new(0, 10, 0, 10)
+	pickerCursor.Size = UDim2.new(0, 14, 0, 14)
 	pickerCursor.AnchorPoint = Vector2.new(0.5, 0.5)
 	pickerCursor.BackgroundColor3 = Color3.new(1, 1, 1)
 	pickerCursor.BorderSizePixel = 0
@@ -1078,8 +1097,8 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	stroke(pickerCursor, Color3.new(0, 0, 0), 0.2)
 
 	local hueBar = Instance.new("Frame")
-	hueBar.Size = UDim2.new(1, 0, 0, 14)
-	hueBar.Position = UDim2.new(0, 0, 0, 92)
+	hueBar.Size = UDim2.new(1, 0, 0, 16)
+	hueBar.Position = UDim2.new(0, 0, 0, 140)
 	hueBar.BackgroundColor3 = Color3.new(1, 1, 1)
 	hueBar.BorderSizePixel = 0
 	hueBar.Active = true
@@ -1099,7 +1118,7 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	hueGradient.Parent = hueBar
 
 	local hueCursor = Instance.new("Frame")
-	hueCursor.Size = UDim2.new(0, 8, 1, 6)
+	hueCursor.Size = UDim2.new(0, 10, 1, 8)
 	hueCursor.AnchorPoint = Vector2.new(0.5, 0.5)
 	hueCursor.Position = UDim2.new(hue, 0, 0.5, 0)
 	hueCursor.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -1108,9 +1127,34 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	corner(hueCursor, 999)
 	stroke(hueCursor, Color3.new(0, 0, 0), 0.2)
 
+	local statsRow = Instance.new("Frame")
+	statsRow.Size = UDim2.new(1, 0, 0, 20)
+	statsRow.Position = UDim2.new(0, 0, 0, 164)
+	statsRow.BackgroundTransparency = 1
+	statsRow.Parent = panel
+
+	local hsvLabel = Instance.new("TextLabel")
+	hsvLabel.Size = UDim2.new(0.5, -4, 1, 0)
+	hsvLabel.BackgroundTransparency = 1
+	hsvLabel.TextColor3 = ui.theme.muted
+	hsvLabel.Font = Enum.Font.GothamMedium
+	hsvLabel.TextSize = 12
+	hsvLabel.TextXAlignment = Enum.TextXAlignment.Left
+	hsvLabel.Parent = statsRow
+
+	local hexPreviewLabel = Instance.new("TextLabel")
+	hexPreviewLabel.Size = UDim2.new(0.5, -4, 1, 0)
+	hexPreviewLabel.Position = UDim2.new(0.5, 8, 0, 0)
+	hexPreviewLabel.BackgroundTransparency = 1
+	hexPreviewLabel.TextColor3 = ui.theme.muted
+	hexPreviewLabel.Font = Enum.Font.GothamMedium
+	hexPreviewLabel.TextSize = 12
+	hexPreviewLabel.TextXAlignment = Enum.TextXAlignment.Right
+	hexPreviewLabel.Parent = statsRow
+
 	local rgbBox = Instance.new("TextBox")
-	rgbBox.Size = UDim2.new(1, 0, 0, 30)
-	rgbBox.Position = UDim2.new(0, 0, 0, 114)
+	rgbBox.Size = UDim2.new(0.5, -4, 0, 30)
+	rgbBox.Position = UDim2.new(0, 0, 0, 190)
 	rgbBox.BackgroundColor3 = ui.theme.control
 	rgbBox.BorderSizePixel = 0
 	rgbBox.TextColor3 = ui.theme.text
@@ -1125,8 +1169,58 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 	stroke(rgbBox, ui.theme.border, 0.5)
 	padding(rgbBox, 10, 0, 10, 0)
 
+	local hexBox = Instance.new("TextBox")
+	hexBox.Size = UDim2.new(0.5, -4, 0, 30)
+	hexBox.Position = UDim2.new(0.5, 8, 0, 190)
+	hexBox.BackgroundColor3 = ui.theme.control
+	hexBox.BorderSizePixel = 0
+	hexBox.TextColor3 = ui.theme.text
+	hexBox.PlaceholderColor3 = ui.theme.muted
+	hexBox.PlaceholderText = "#RRGGBB"
+	hexBox.ClearTextOnFocus = false
+	hexBox.Font = Enum.Font.Gotham
+	hexBox.TextSize = 14
+	hexBox.TextXAlignment = Enum.TextXAlignment.Left
+	hexBox.Parent = panel
+	corner(hexBox, 6)
+	stroke(hexBox, ui.theme.border, 0.5)
+	padding(hexBox, 10, 0, 10, 0)
+
+	local swatchTitle = Instance.new("TextLabel")
+	swatchTitle.Size = UDim2.new(1, 0, 0, 16)
+	swatchTitle.Position = UDim2.new(0, 0, 0, 228)
+	swatchTitle.BackgroundTransparency = 1
+	swatchTitle.Text = "Quick Colors"
+	swatchTitle.TextColor3 = ui.theme.muted
+	swatchTitle.Font = Enum.Font.GothamMedium
+	swatchTitle.TextSize = 12
+	swatchTitle.TextXAlignment = Enum.TextXAlignment.Left
+	swatchTitle.Parent = panel
+
+	local swatchGrid = Instance.new("Frame")
+	swatchGrid.Size = UDim2.new(1, 0, 0, 38)
+	swatchGrid.Position = UDim2.new(0, 0, 0, 246)
+	swatchGrid.BackgroundTransparency = 1
+	swatchGrid.Parent = panel
+
+	local swatchLayout = Instance.new("UIGridLayout")
+	swatchLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+	swatchLayout.CellSize = UDim2.new(0, 28, 0, 28)
+	swatchLayout.FillDirectionMaxCells = 8
+	swatchLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	swatchLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	swatchLayout.Parent = swatchGrid
+
 	local function colorToText(nextColor)
 		return tostring(math.floor(nextColor.R * 255 + 0.5)) .. "," .. tostring(math.floor(nextColor.G * 255 + 0.5)) .. "," .. tostring(math.floor(nextColor.B * 255 + 0.5))
+	end
+
+	local function channelToHex(channel)
+		return string.format("%02X", clamp(math.floor(channel * 255 + 0.5), 0, 255))
+	end
+
+	local function colorToHex(nextColor)
+		return "#" .. channelToHex(nextColor.R) .. channelToHex(nextColor.G) .. channelToHex(nextColor.B)
 	end
 
 	local function setExpanded(isExpanded)
@@ -1170,6 +1264,9 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 		pickerCursor.Position = UDim2.new(saturation, 0, 1 - value, 0)
 		hueCursor.Position = UDim2.new(hue, 0, 0.5, 0)
 		rgbBox.Text = colorToText(color)
+		hexBox.Text = colorToHex(color)
+		hsvLabel.Text = string.format("H:%03d  S:%03d  V:%03d", math.floor(hue * 360 + 0.5), math.floor(saturation * 100 + 0.5), math.floor(value * 100 + 0.5))
+		hexPreviewLabel.Text = "Hex " .. colorToHex(color)
 		toggle.Text = colorToText(color)
 
 		if shouldEmit then
@@ -1186,6 +1283,25 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 		return Color3.fromRGB(clamp(tonumber(r), 0, 255), clamp(tonumber(g), 0, 255), clamp(tonumber(b), 0, 255))
 	end
 
+	local function parseHex(text)
+		local hex = string.upper(string.gsub(text or "", "#", ""))
+		if string.len(hex) == 3 then
+			hex = string.sub(hex, 1, 1) .. string.sub(hex, 1, 1)
+				.. string.sub(hex, 2, 2) .. string.sub(hex, 2, 2)
+				.. string.sub(hex, 3, 3) .. string.sub(hex, 3, 3)
+		end
+
+		if not string.match(hex, "^[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]$") then
+			return nil
+		end
+
+		return Color3.fromRGB(
+			tonumber(string.sub(hex, 1, 2), 16),
+			tonumber(string.sub(hex, 3, 4), 16),
+			tonumber(string.sub(hex, 5, 6), 16)
+		)
+	end
+
 	local function updateFromSquare(input)
 		local x = clamp(input.Position.X - picker.AbsolutePosition.X, 0, picker.AbsoluteSize.X)
 		local y = clamp(input.Position.Y - picker.AbsolutePosition.Y, 0, picker.AbsoluteSize.Y)
@@ -1198,6 +1314,42 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 		local x = clamp(input.Position.X - hueBar.AbsolutePosition.X, 0, hueBar.AbsoluteSize.X)
 		hue = hueBar.AbsoluteSize.X == 0 and 0 or x / hueBar.AbsoluteSize.X
 		syncVisuals(false)
+	end
+
+	for _, swatchColor in ipairs({
+		Color3.fromRGB(255, 255, 255),
+		Color3.fromRGB(0, 0, 0),
+		Color3.fromRGB(244, 67, 54),
+		Color3.fromRGB(255, 152, 0),
+		Color3.fromRGB(255, 235, 59),
+		Color3.fromRGB(76, 175, 80),
+		Color3.fromRGB(33, 150, 243),
+		Color3.fromRGB(156, 39, 176),
+		Color3.fromRGB(255, 64, 129),
+		Color3.fromRGB(0, 188, 212),
+		Color3.fromRGB(121, 85, 72),
+		Color3.fromRGB(96, 125, 139),
+	}) do
+		local swatch = Instance.new("TextButton")
+		swatch.BackgroundColor3 = swatchColor
+		swatch.BorderSizePixel = 0
+		swatch.Text = ""
+		swatch.AutoButtonColor = false
+		swatch.Parent = swatchGrid
+		corner(swatch, 6)
+		stroke(swatch, ui.theme.border, 0.35)
+
+		swatch.MouseEnter:Connect(function()
+			swatch.BackgroundColor3 = swatchColor:Lerp(Color3.new(1, 1, 1), 0.12)
+		end)
+
+		swatch.MouseLeave:Connect(function()
+			swatch.BackgroundColor3 = swatchColor
+		end)
+
+		swatch.MouseButton1Click:Connect(function()
+			setFromColor(swatchColor, true)
+		end)
 	end
 
 	toggle.MouseButton1Click:Connect(function()
@@ -1255,11 +1407,22 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 		setFromColor(nextColor, true)
 	end)
 
+	hexBox.FocusLost:Connect(function()
+		local nextColor = parseHex(hexBox.Text)
+		if not nextColor then
+			hexBox.Text = colorToHex(color)
+			return
+		end
+
+		setFromColor(nextColor, true)
+	end)
+
 	setFromColor(color, false)
 
 	return {
 		button = toggle,
 		box = rgbBox,
+		hexBox = hexBox,
 		panel = panel,
 		GetValue = function()
 			return color
@@ -1432,8 +1595,8 @@ function dropdownClass:SetOptions(options)
 	end
 end
 
-function tabClass:Dropdown(title, options, default, callback)
-	local container = makeControlFrame(self.frame, 44)
+local function createDropdownControl(parent, title, options, default, callback)
+	local container = makeControlFrame(parent, 44)
 
 	local shield = Instance.new("TextButton")
 	shield.Size = UDim2.new(1, 0, 0, 2000)
@@ -1506,13 +1669,17 @@ function tabClass:Dropdown(title, options, default, callback)
 
 	drop:SetOptions(options)
 
-	if default then
+	if default ~= nil then
 		drop:SetValue(default)
 	else
 		button.Text = title .. " v"
 	end
 
 	return drop
+end
+
+function tabClass:Dropdown(title, options, default, callback)
+	return createDropdownControl(self.frame, title, options, default, callback)
 end
 
 function tabClass:PlayerInput(title, defaultPlayer, callback)
@@ -1669,6 +1836,298 @@ end
 function multiDropdownClass:SetOptions(options)
 	self.options = options or {}
 	self:Refresh()
+end
+
+function dropdownListClass:_sanitizeValue(value)
+	if value ~= nil then
+		return value
+	end
+
+	if self.defaultValue ~= nil then
+		return self.defaultValue
+	end
+
+	if #self.options > 0 then
+		return self.options[1]
+	end
+
+	return nil
+end
+
+function dropdownListClass:_emit()
+	if self.callback then
+		self.callback(self:GetValue())
+	end
+end
+
+function dropdownListClass:_refreshHeader()
+	local count = #self.rows
+	local minLengthText = tostring(self.minLength or 0)
+	local maxLengthText = self.maxLength == math.huge and "inf" or tostring(self.maxLength)
+	self.titleLabel.Text = string.format("%s (%d/%s, min %s)", self.title, count, maxLengthText, minLengthText)
+	self.addButton.Text = count >= self.maxLength and "Max" or "+"
+	self.addButton.Active = count < self.maxLength
+	self.addButton.AutoButtonColor = count < self.maxLength
+	self.addButton.BackgroundColor3 = count < self.maxLength and ui.theme.accent or ui.theme.panelLight
+
+	for _, row in ipairs(self.rows) do
+		local canRemove = count > (self.minLength or 0)
+		row.removeButton.Active = canRemove
+		row.removeButton.AutoButtonColor = canRemove
+		row.removeButton.TextTransparency = canRemove and 0 or 0.45
+		row.removeButton.BackgroundColor3 = canRemove and ui.theme.panelLight or ui.theme.control
+	end
+end
+
+function dropdownListClass:_createRow(initialValue)
+	local rowHolder = Instance.new("Frame")
+	rowHolder.Size = UDim2.new(1, 0, 0, 44)
+	rowHolder.BackgroundTransparency = 1
+	rowHolder.Parent = self.rowsFrame
+
+	local removeButton = Instance.new("TextButton")
+	removeButton.Size = UDim2.new(0, 36, 0, 36)
+	removeButton.Position = UDim2.new(1, -36, 0.5, 0)
+	removeButton.AnchorPoint = Vector2.new(0, 0.5)
+	removeButton.BackgroundColor3 = ui.theme.panelLight
+	removeButton.BorderSizePixel = 0
+	removeButton.Text = "X"
+	removeButton.TextColor3 = ui.theme.text
+	removeButton.Font = Enum.Font.GothamBold
+	removeButton.TextSize = 14
+	removeButton.AutoButtonColor = false
+	removeButton.Parent = rowHolder
+	corner(removeButton, 6)
+	stroke(removeButton, ui.theme.border, 0.4)
+	setControlHover(removeButton, ui.theme.panelLight)
+
+	local dropdown = createDropdownControl(
+		rowHolder,
+		self.namePrefix .. " " .. tostring(#self.rows + 1),
+		self.options,
+		self:_sanitizeValue(initialValue),
+		function(selected)
+			if not self.suppressCallback then
+				self:_emit()
+			end
+		end
+	)
+
+	dropdown.container.Size = UDim2.new(1, -44, 0, 44)
+
+	local row = {
+		holder = rowHolder,
+		dropdown = dropdown,
+		removeButton = removeButton,
+	}
+
+	removeButton.MouseButton1Click:Connect(function()
+		if #self.rows <= (self.minLength or 0) then
+			return
+		end
+
+		for index, currentRow in ipairs(self.rows) do
+			if currentRow == row then
+				table.remove(self.rows, index)
+				rowHolder:Destroy()
+				self:_renumberRows()
+				self:_refreshHeader()
+				if not self.suppressCallback then
+					self:_emit()
+				end
+				return
+			end
+		end
+	end)
+
+	table.insert(self.rows, row)
+	self:_refreshHeader()
+	if not self.suppressCallback then
+		self:_emit()
+	end
+	return row
+end
+
+function dropdownListClass:_renumberRows()
+	for index, row in ipairs(self.rows) do
+		row.dropdown.title = self.namePrefix .. " " .. tostring(index)
+		if row.dropdown.value ~= nil then
+			row.dropdown.button.Text = row.dropdown.title .. ": " .. tostring(row.dropdown.value)
+		else
+			row.dropdown.button.Text = row.dropdown.title .. (row.dropdown.open and " ^" or " v")
+		end
+	end
+end
+
+function dropdownListClass:AddValue(value)
+	if #self.rows >= self.maxLength then
+		return false
+	end
+
+	self:_createRow(value)
+	self:_renumberRows()
+	return true
+end
+
+function dropdownListClass:Clear()
+	for _, row in ipairs(self.rows) do
+		row.holder:Destroy()
+	end
+	self.rows = {}
+	self:_refreshHeader()
+	if not self.suppressCallback then
+		self:_emit()
+	end
+end
+
+function dropdownListClass:SetValue(values)
+	self.suppressCallback = true
+	self:Clear()
+
+	for _, value in ipairs(values or {}) do
+		if #self.rows >= self.maxLength then
+			break
+		end
+		self:_createRow(value)
+	end
+
+	while #self.rows < (self.minLength or 0) and #self.rows < self.maxLength do
+		self:_createRow(self:_sanitizeValue(nil))
+	end
+
+	self:_renumberRows()
+	self.suppressCallback = false
+	self:_emit()
+end
+
+function dropdownListClass:GetValue()
+	local values = {}
+	for index, row in ipairs(self.rows) do
+		values[index] = row.dropdown.value
+	end
+	return values
+end
+
+function dropdownListClass:SetOptions(options)
+	self.options = cloneArray(options or {})
+	for _, row in ipairs(self.rows) do
+		row.dropdown:SetOptions(self.options)
+		if row.dropdown.value ~= nil and not valueExists(self.options, row.dropdown.value) then
+			row.dropdown.value = nil
+			row.dropdown:SetValue(self:_sanitizeValue(nil))
+		end
+	end
+	self:_emit()
+end
+
+function dropdownListClass:SetDefaultValue(value)
+	self.defaultValue = value
+end
+
+function tabClass:DropdownList(name, minLength, maxLength, startList, dropdownChoices, defaultDropdownChoice, callback)
+	if type(maxLength) ~= "number" and maxLength ~= nil then
+		callback = defaultDropdownChoice
+		defaultDropdownChoice = dropdownChoices
+		dropdownChoices = startList
+		startList = maxLength
+		maxLength = minLength
+		minLength = 0
+	end
+
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(1, 0, 0, 0)
+	container.AutomaticSize = Enum.AutomaticSize.Y
+	container.BackgroundColor3 = ui.theme.panel
+	container.BorderSizePixel = 0
+	container.Parent = self.frame
+	corner(container, 6)
+	stroke(container, ui.theme.border, 0.5)
+
+	local header = Instance.new("Frame")
+	header.Size = UDim2.new(1, 0, 0, 42)
+	header.BackgroundTransparency = 1
+	header.Parent = container
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, -54, 1, 0)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.TextColor3 = ui.theme.text
+	titleLabel.Font = Enum.Font.GothamSemibold
+	titleLabel.TextSize = 14
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Text = name or "List"
+	titleLabel.Parent = header
+	padding(titleLabel, 12, 0, 0, 0)
+
+	local addButton = Instance.new("TextButton")
+	addButton.Size = UDim2.new(0, 32, 0, 32)
+	addButton.Position = UDim2.new(1, -12, 0.5, 0)
+	addButton.AnchorPoint = Vector2.new(1, 0.5)
+	addButton.BackgroundColor3 = ui.theme.accent
+	addButton.BorderSizePixel = 0
+	addButton.Text = "+"
+	addButton.TextColor3 = ui.theme.text
+	addButton.Font = Enum.Font.GothamBold
+	addButton.TextSize = 20
+	addButton.AutoButtonColor = false
+	addButton.Parent = header
+	corner(addButton, 6)
+	stroke(addButton, ui.theme.border, 0.35)
+
+	local rowsFrame = Instance.new("Frame")
+	rowsFrame.Size = UDim2.new(1, -24, 0, 0)
+	rowsFrame.Position = UDim2.new(0, 12, 0, 42)
+	rowsFrame.AutomaticSize = Enum.AutomaticSize.Y
+	rowsFrame.BackgroundTransparency = 1
+	rowsFrame.Parent = container
+
+	local rowsLayout = Instance.new("UIListLayout")
+	rowsLayout.Padding = UDim.new(0, 8)
+	rowsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	rowsLayout.Parent = rowsFrame
+
+	local bottomPadding = Instance.new("Frame")
+	bottomPadding.Size = UDim2.new(1, 0, 0, 12)
+	bottomPadding.BackgroundTransparency = 1
+	bottomPadding.Parent = rowsFrame
+	bottomPadding.LayoutOrder = 9999
+
+	local list = setmetatable({}, dropdownListClass)
+	list.container = container
+	list.header = header
+	list.titleLabel = titleLabel
+	list.addButton = addButton
+	list.rowsFrame = rowsFrame
+	list.title = name or "List"
+	list.namePrefix = name or "Item"
+	list.maxLength = math.max(0, tonumber(maxLength) or math.huge)
+	list.minLength = math.max(0, tonumber(minLength) or 0)
+	if list.minLength > list.maxLength then
+		list.minLength = list.maxLength
+	end
+	list.options = cloneArray(dropdownChoices or {})
+	list.defaultValue = defaultDropdownChoice
+	list.callback = callback
+	list.rows = {}
+
+	addButton.MouseEnter:Connect(function()
+		if #list.rows < list.maxLength then
+			addButton.BackgroundColor3 = ui.theme.accentDark
+		end
+	end)
+
+	addButton.MouseLeave:Connect(function()
+		list:_refreshHeader()
+	end)
+
+	addButton.MouseButton1Click:Connect(function()
+		list:AddValue(list:_sanitizeValue(nil))
+	end)
+
+	list:_refreshHeader()
+	list:SetValue(startList or {})
+
+	return list
 end
 
 function tabClass:MultiDropdown(title, options, defaults, callback)
