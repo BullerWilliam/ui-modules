@@ -2,6 +2,7 @@ local plrs = game:GetService("Players")
 local plr = plrs.LocalPlayer
 local uis = game:GetService("UserInputService")
 local camera = workspace.CurrentCamera
+local http = game:GetService("HttpService")
 
 print("------------------------loaded ui module-------------------------")
 print("---------------------------Version:1.1---------------------------")
@@ -117,6 +118,113 @@ local function resolvePlayer(value)
 	end
 
 	return nil
+end
+
+local function colorToData(color)
+	return {
+		r = math.floor(color.R * 255 + 0.5),
+		g = math.floor(color.G * 255 + 0.5),
+		b = math.floor(color.B * 255 + 0.5),
+	}
+end
+
+local function dataToColor(data, fallback)
+	if type(data) ~= "table" then
+		return fallback
+	end
+
+	local r = tonumber(data.r)
+	local g = tonumber(data.g)
+	local b = tonumber(data.b)
+	if r == nil or g == nil or b == nil then
+		return fallback
+	end
+
+	return Color3.fromRGB(clamp(r, 0, 255), clamp(g, 0, 255), clamp(b, 0, 255))
+end
+
+local function bufferToHex(buf)
+	local parts = table.create(buffer.len(buf))
+	for index = 0, buffer.len(buf) - 1 do
+		parts[index + 1] = string.format("%02X", buffer.readu8(buf, index))
+	end
+	return table.concat(parts)
+end
+
+local function hexToBuffer(hex)
+	if type(hex) ~= "string" or (#hex % 2) ~= 0 then
+		return nil
+	end
+
+	local out = buffer.create(#hex / 2)
+	for index = 1, #hex, 2 do
+		local byte = tonumber(string.sub(hex, index, index + 1), 16)
+		if byte == nil then
+			return nil
+		end
+		buffer.writeu8(out, (index - 1) / 2, byte)
+	end
+
+	return out
+end
+
+local function encodeSavePayload(payload)
+	if buffer and buffer.fromstring and buffer.compress then
+		local ok, encoded = pcall(function()
+			local raw = buffer.fromstring(payload)
+			return "C1:" .. bufferToHex(buffer.compress(raw))
+		end)
+		if ok and encoded then
+			return encoded
+		end
+	end
+
+	return "J1:" .. payload
+end
+
+local function decodeSavePayload(data)
+	if type(data) ~= "string" then
+		return nil, "Save data must be a string"
+	end
+
+	local mode, payload = string.match(data, "^(%u%d):(.*)$")
+	if mode == "C1" then
+		if not (buffer and buffer.decompress and buffer.tostring) then
+			return nil, "Compressed save data is not supported in this Luau runtime"
+		end
+
+		local compressed = hexToBuffer(payload)
+		if not compressed then
+			return nil, "Compressed save data is malformed"
+		end
+
+		local ok, decoded = pcall(function()
+			return buffer.tostring(buffer.decompress(compressed))
+		end)
+		if not ok then
+			return nil, "Compressed save data could not be decoded"
+		end
+
+		return decoded
+	end
+
+	if mode == "J1" then
+		return payload
+	end
+
+	return nil, "Unknown save data format"
+end
+
+local function registerSavableControl(tab, kind, getter, loader)
+	if not tab or not tab.window or (tab._suspendSaveRegistration or 0) > 0 then
+		return
+	end
+
+	table.insert(tab.window._saveControls, {
+		kind = kind,
+		get = getter,
+		load = loader,
+	})
 end
 
 local function updateScale()
@@ -459,6 +567,7 @@ function ui:CreateWindow(titleText)
 	win.tabButtons = {}
 	win.currentTab = nil
 	win.title = title
+	win._saveControls = {}
 
 	table.insert(self.windows, win)
 
@@ -467,6 +576,48 @@ end
 
 function windowClass:ChangeTitle(newtitle)
 	self.title.Text = newtitle
+end
+
+function windowClass:Save()
+	local controls = {}
+
+	for index, control in ipairs(self._saveControls) do
+		controls[index] = {
+			k = control.kind,
+			v = control.get(),
+		}
+	end
+
+	return encodeSavePayload(http:JSONEncode({
+		version = 1,
+		controls = controls,
+	}))
+end
+
+function windowClass:Load(data)
+	local payload, decodeError = decodeSavePayload(data)
+	if not payload then
+		error(decodeError)
+	end
+
+	local ok, decoded = pcall(function()
+		return http:JSONDecode(payload)
+	end)
+	if not ok or type(decoded) ~= "table" then
+		error("Save data is not valid JSON")
+	end
+
+	local controls = decoded.controls
+	if type(controls) ~= "table" then
+		error("Save data is missing controls")
+	end
+
+	for index, savedControl in ipairs(controls) do
+		local liveControl = self._saveControls[index]
+		if liveControl and liveControl.kind == savedControl.k then
+			liveControl.load(savedControl.v)
+		end
+	end
 end
 
 function windowClass:SelectTab(tab)
@@ -535,6 +686,8 @@ function windowClass:CreateTab(name)
 	tab = setmetatable({}, tabClass)
 	tab.frame = frame
 	tab.button = tabBtn
+	tab.window = self
+	tab._suspendSaveRegistration = 0
 
 	table.insert(self.tabs, tab)
 	table.insert(self.tabButtons, tabBtn)
@@ -649,6 +802,17 @@ function tabClass:Toggle(text, startvalue, callback)
 
 	syncToggle()
 
+	registerSavableControl(self, "toggle", function()
+		return state
+	end, function(value)
+		state = value == true
+		syncToggle()
+		ui:RefreshTheme()
+		if callback then
+			callback(state)
+		end
+	end)
+
 	return {
 		SetValue = function(_, value)
 			state = value == true
@@ -712,6 +876,15 @@ function tabClass:Input(labelText, placeholder, callback)
 		end
 	end)
 
+	registerSavableControl(self, "input", function()
+		return box.Text
+	end, function(value)
+		box.Text = tostring(value or "")
+		if callback then
+			callback(box.Text)
+		end
+	end)
+
 	return box
 end
 
@@ -747,10 +920,12 @@ function tabClass:NumberInput(labelText, defaultValue, callback, minValue, maxVa
 		end
 	end
 
+	self._suspendSaveRegistration += 1
 	box = self:Input(labelText, tostring(defaultValue or 0), function(text)
 		local value = normalizeNumber(text, currentValue)
 		applyValue(value, true)
 	end)
+	self._suspendSaveRegistration -= 1
 
 	local container = box.Parent
 	box.Size = UDim2.new(1, -180, 0, 30)
@@ -794,6 +969,13 @@ function tabClass:NumberInput(labelText, defaultValue, callback, minValue, maxVa
 	end)
 
 	applyValue(currentValue, false)
+
+	registerSavableControl(self, "number", function()
+		return currentValue
+	end, function(value)
+		applyValue(normalizeNumber(tostring(value), currentValue), true)
+	end)
+
 	return box
 end
 
@@ -801,7 +983,9 @@ function tabClass:PasswordInput(labelText, placeholder, callback)
 	local realText = ""
 	local masked = true
 	local updatingText = false
+	self._suspendSaveRegistration += 1
 	local box = self:Input(labelText, placeholder or "Password")
+	self._suspendSaveRegistration -= 1
 	local container = box.Parent
 	box.Size = UDim2.new(1, -168, 0, 30)
 
@@ -863,6 +1047,16 @@ function tabClass:PasswordInput(labelText, placeholder, callback)
 
 	syncPasswordDisplay()
 
+	registerSavableControl(self, "password", function()
+		return realText
+	end, function(value)
+		realText = tostring(value or "")
+		syncPasswordDisplay()
+		if callback then
+			callback(realText)
+		end
+	end)
+
 	return {
 		box = box,
 		button = toggleButton,
@@ -909,16 +1103,46 @@ function tabClass:TextArea(labelText, placeholder, callback)
 		end
 	end)
 
+	registerSavableControl(self, "textarea", function()
+		return box.Text
+	end, function(value)
+		box.Text = tostring(value or "")
+		if callback then
+			callback(box.Text)
+		end
+	end)
+
 	return box
 end
 
 function tabClass:SearchInput(labelText, placeholder, callback)
 	local box = self:Input(labelText, placeholder or "Search", callback)
+	local suppressChangeCallback = false
+
 	box:GetPropertyChangedSignal("Text"):Connect(function()
+		if suppressChangeCallback then
+			return
+		end
+
 		if callback then
 			callback(box.Text)
 		end
 	end)
+
+	local controls = self.window and self.window._saveControls
+	local lastControl = controls and controls[#controls]
+	if lastControl and lastControl.kind == "input" then
+		lastControl.kind = "search"
+		lastControl.load = function(value)
+			suppressChangeCallback = true
+			box.Text = tostring(value or "")
+			suppressChangeCallback = false
+			if callback then
+				callback(box.Text)
+			end
+		end
+	end
+
 	return box
 end
 
@@ -993,6 +1217,12 @@ function tabClass:Slider(labelText, minValue, maxValue, defaultValue, callback)
 
 	setValue(value, false)
 
+	registerSavableControl(self, "slider", function()
+		return value
+	end, function(newValue)
+		setValue(normalizeNumber(tostring(newValue), value), true)
+	end)
+
 	return {
 		SetValue = function(_, newValue)
 			setValue(newValue, true)
@@ -1038,6 +1268,17 @@ function tabClass:Keybind(labelText, defaultKey, callback)
 		currentKey = input.KeyCode
 		btn.Text = currentKey.Name
 
+		if callback then
+			callback(currentKey)
+		end
+	end)
+
+	registerSavableControl(self, "keybind", function()
+		return currentKey.Name
+	end, function(keyName)
+		local nextKey = Enum.KeyCode[tostring(keyName or "Unknown")] or Enum.KeyCode.Unknown
+		currentKey = nextKey
+		btn.Text = currentKey.Name
 		if callback then
 			callback(currentKey)
 		end
@@ -1521,6 +1762,13 @@ function tabClass:ColorInput(labelText, defaultColor, callback)
 
 	setFromColor(color, false)
 
+	registerSavableControl(self, "color", function()
+		return colorToData(color)
+	end, function(newColor)
+		local resolvedColor = dataToColor(newColor, color)
+		setFromColor(resolvedColor, true)
+	end)
+
 	return {
 		button = toggle,
 		box = rgbBox,
@@ -1543,6 +1791,7 @@ end
 
 function tabClass:ThemePicker(labelText, customColor)
 	customColor = customColor or ui.theme.accent
+	self._suspendSaveRegistration += 1
 
 	local mode = self:Dropdown(labelText or "Theme", { "Default Blue", "Custom Color" }, "Default Blue", function(value)
 		if value == "Default Blue" then
@@ -1560,6 +1809,30 @@ function tabClass:ThemePicker(labelText, customColor)
 		ui:SetTheme(color)
 		if wasOpen and colorInput then
 			colorInput:SetOpen(true)
+		end
+	end)
+	self._suspendSaveRegistration -= 1
+
+	registerSavableControl(self, "themePicker", function()
+		return {
+			mode = mode.value or "Default Blue",
+			color = colorToData(colorInput:GetValue()),
+		}
+	end, function(savedValue)
+		if type(savedValue) ~= "table" then
+			return
+		end
+
+		local savedColor = dataToColor(savedValue.color, colorInput:GetValue())
+		customColor = savedColor
+		if savedValue.mode == "Default Blue" then
+			colorInput:SetValue(savedColor)
+			mode:SetValue("Default Blue")
+			ui:SetTheme("default")
+		else
+			colorInput:SetValue(savedColor)
+			mode:SetValue("Custom Color")
+			ui:SetTheme(savedColor)
 		end
 	end)
 
@@ -1789,13 +2062,25 @@ local function createDropdownControl(parent, title, options, default, callback)
 end
 
 function tabClass:Dropdown(title, options, default, callback)
-	return createDropdownControl(self.frame, title, options, default, callback)
+	local dropdown = createDropdownControl(self.frame, title, options, default, callback)
+
+	registerSavableControl(self, "dropdown", function()
+		return dropdown.value
+	end, function(value)
+		if value == nil then
+			return
+		end
+		dropdown:SetValue(value)
+	end)
+
+	return dropdown
 end
 
 function tabClass:PlayerInput(title, defaultPlayer, callback)
 	local currentPlayer = resolvePlayer(defaultPlayer)
 	local dropdown
 	local originalSetValue
+	self._suspendSaveRegistration += 1
 
 	local function refreshOptions()
 		local names = getPlayerNames()
@@ -1822,6 +2107,7 @@ function tabClass:PlayerInput(title, defaultPlayer, callback)
 			callback(currentPlayer)
 		end
 	end)
+	self._suspendSaveRegistration -= 1
 
 	plrs.PlayerAdded:Connect(refreshOptions)
 	plrs.PlayerRemoving:Connect(function(player)
@@ -1848,6 +2134,16 @@ function tabClass:PlayerInput(title, defaultPlayer, callback)
 	dropdown.GetValue = function()
 		return currentPlayer
 	end
+
+	registerSavableControl(self, "player", function()
+		return currentPlayer and currentPlayer.Name or nil
+	end, function(value)
+		currentPlayer = resolvePlayer(value)
+		dropdown:SetValue(value)
+		if not currentPlayer and callback then
+			callback(nil)
+		end
+	end)
 
 	refreshOptions()
 	return dropdown
@@ -2244,6 +2540,12 @@ function tabClass:DropdownList(name, minLength, maxLength, startList, dropdownCh
 	list:_refreshHeader()
 	list:SetValue(startList or {})
 
+	registerSavableControl(self, "dropdownList", function()
+		return list:GetValue()
+	end, function(values)
+		list:SetValue(values or {})
+	end)
+
 	return list
 end
 
@@ -2325,6 +2627,18 @@ function tabClass:MultiDropdown(title, options, defaults, callback)
 
 	drop:SetValue(defaults or {})
 
+	registerSavableControl(self, "multiDropdown", function()
+		local values = {}
+		for _, option in ipairs(drop.options or {}) do
+			if drop.values[option] then
+				table.insert(values, option)
+			end
+		end
+		return values
+	end, function(values)
+		drop:SetValue(values or {})
+	end)
+
 	return drop
 end
 
@@ -2332,6 +2646,7 @@ function tabClass:MultiPlayerInput(title, defaultPlayers, callback)
 	local currentPlayers = {}
 	local dropdown
 	local originalSetValue
+	self._suspendSaveRegistration += 1
 
 	for _, playerValue in ipairs(defaultPlayers or {}) do
 		local player = resolvePlayer(playerValue)
@@ -2373,6 +2688,7 @@ function tabClass:MultiPlayerInput(title, defaultPlayers, callback)
 			callback(players)
 		end
 	end)
+	self._suspendSaveRegistration -= 1
 
 	plrs.PlayerAdded:Connect(refreshOptions)
 	plrs.PlayerRemoving:Connect(function(player)
@@ -2410,6 +2726,16 @@ function tabClass:MultiPlayerInput(title, defaultPlayers, callback)
 	dropdown.GetValue = function()
 		return currentPlayers
 	end
+
+	registerSavableControl(self, "multiPlayer", function()
+		local names = {}
+		for _, player in ipairs(currentPlayers) do
+			table.insert(names, player.Name)
+		end
+		return names
+	end, function(values)
+		dropdown:SetValue(values or {})
+	end)
 
 	refreshOptions()
 	return dropdown
