@@ -23,6 +23,7 @@ ui.windowCount = 0
 ui.dragWindow = nil
 ui.dragStart = nil
 ui.startPos = nil
+ui.openDropdowns = {}
 ui.defaultAccent = Color3.fromRGB(75, 139, 255)
 ui.theme = {
 	bg = Color3.fromRGB(24, 25, 30),
@@ -125,7 +126,10 @@ end
 
 updateScale()
 if camera then
-	camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+	camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+		updateScale()
+		ui:RefreshOpenDropdownPositions()
+	end)
 end
 
 local function corner(parent, radius)
@@ -264,6 +268,103 @@ local function setZIndexRecursive(root, zIndex)
 	end
 end
 
+local function getViewportSize()
+	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+end
+
+local function getVisibleVerticalBounds(guiObject)
+	local top = 0
+	local bottom = getViewportSize().Y
+	local current = guiObject
+
+	while current and current ~= gui do
+		if current:IsA("GuiObject") and (current.ClipsDescendants or current:IsA("ScrollingFrame")) then
+			local currentTop = current.AbsolutePosition.Y
+			local currentBottom = currentTop + current.AbsoluteSize.Y
+			top = math.max(top, currentTop)
+			bottom = math.min(bottom, currentBottom)
+		end
+
+		current = current.Parent
+	end
+
+	return top, bottom
+end
+
+local function positionDropdownMenu(dropdown)
+	if not dropdown or not dropdown.button or not dropdown.button.Parent or not dropdown.menu then
+		return
+	end
+
+	local buttonTop = dropdown.button.AbsolutePosition.Y
+	local buttonBottom = buttonTop + dropdown.button.AbsoluteSize.Y
+	local menuHeight = dropdown.menu.AbsoluteSize.Y
+
+	if menuHeight <= 0 then
+		menuHeight = dropdown.menu.Size.Y.Offset
+	end
+
+	local visibleTop, visibleBottom = getVisibleVerticalBounds(dropdown.button)
+	local gap = 6
+	local spaceAbove = buttonTop - visibleTop - gap
+	local spaceBelow = visibleBottom - buttonBottom - gap
+	local openAbove = false
+
+	if spaceBelow < menuHeight and spaceAbove > spaceBelow then
+		openAbove = true
+	end
+
+	if openAbove then
+		dropdown.menu.Position = UDim2.new(0, 0, 0, -(menuHeight + gap))
+	else
+		dropdown.menu.Position = UDim2.new(0, 0, 0, 44 + gap)
+	end
+end
+
+function ui:RefreshOpenDropdownPositions()
+	for dropdown in pairs(self.openDropdowns) do
+		if dropdown.open and dropdown.button and dropdown.button.Parent and dropdown.menu and dropdown.menu.Parent then
+			positionDropdownMenu(dropdown)
+		else
+			self.openDropdowns[dropdown] = nil
+		end
+	end
+end
+
+local function connectDropdownPositionTracking(dropdown)
+	local function refreshIfOpen()
+		if dropdown.open then
+			positionDropdownMenu(dropdown)
+		end
+	end
+
+	dropdown._positionConnections = dropdown._positionConnections or {}
+
+	local function watch(instance, property)
+		table.insert(dropdown._positionConnections, instance:GetPropertyChangedSignal(property):Connect(refreshIfOpen))
+	end
+
+	watch(dropdown.button, "AbsolutePosition")
+	watch(dropdown.button, "AbsoluteSize")
+	watch(dropdown.menu, "AbsoluteSize")
+
+	local current = dropdown.container
+	while current and current ~= gui do
+		if current:IsA("GuiObject") then
+			if current.ClipsDescendants or current:IsA("ScrollingFrame") then
+				watch(current, "AbsolutePosition")
+				watch(current, "AbsoluteSize")
+			end
+
+			if current:IsA("ScrollingFrame") then
+				watch(current, "CanvasPosition")
+			end
+		end
+
+		current = current.Parent
+	end
+end
+
 uis.InputChanged:Connect(function(input)
 	if ui.dragWindow and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - ui.dragStart
@@ -275,6 +376,7 @@ uis.InputChanged:Connect(function(input)
 			ui.startPos.Y.Scale,
 			ui.startPos.Y.Offset + delta.Y
 		)
+		ui:RefreshOpenDropdownPositions()
 	end
 end)
 
@@ -1544,31 +1646,6 @@ function tabClass:Label(text)
 	item.text = text or ""
 	return item
 end
-
-local function getViewportSize()
-	return camera and camera.ViewportSize or Vector2.new(1280, 720)
-end
-
-local function positionDropdownMenu(dropdown)
-	local viewportHeight = getViewportSize().Y
-	local buttonBottom = dropdown.button.AbsolutePosition.Y + dropdown.button.AbsoluteSize.Y
-	local menuHeight = dropdown.menu.AbsoluteSize.Y
-
-	if menuHeight <= 0 then
-		menuHeight = dropdown.menu.Size.Y.Offset
-	end
-
-	local gap = 6
-	local menuBottom = buttonBottom + gap + menuHeight
-	local canOpenAbove = dropdown.button.AbsolutePosition.Y - gap - menuHeight >= 0
-
-	if menuBottom > viewportHeight and canOpenAbove then
-		dropdown.menu.Position = UDim2.new(0, 0, 0, -(menuHeight + gap))
-	else
-		dropdown.menu.Position = UDim2.new(0, 0, 0, 44 + gap)
-	end
-end
-
 function dropdownClass:SetValue(value)
 	self.value = value
 	self.button.Text = self.title .. ": " .. tostring(value)
@@ -1585,8 +1662,11 @@ function dropdownClass:SetOpen(isOpen)
 		self.shield.Visible = isOpen
 	end
 	if isOpen then
+		ui.openDropdowns[self] = true
 		positionDropdownMenu(self)
 		setZIndexRecursive(self.menu, 20)
+	else
+		ui.openDropdowns[self] = nil
 	end
 	self.button.Text = self.value and (self.title .. ": " .. tostring(self.value)) or (self.title .. (isOpen and " ^" or " v"))
 end
@@ -1617,6 +1697,10 @@ function dropdownClass:SetOptions(options)
 			self:SetValue(option)
 			self:SetOpen(false)
 		end)
+	end
+
+	if self.open then
+		positionDropdownMenu(self)
 	end
 end
 
@@ -1687,6 +1771,7 @@ local function createDropdownControl(parent, title, options, default, callback)
 	drop.container = container
 	drop.shield = shield
 	drop.open = false
+	connectDropdownPositionTracking(drop)
 
 	button.MouseButton1Click:Connect(function()
 		drop:SetOpen(not drop.open)
@@ -1803,8 +1888,11 @@ function multiDropdownClass:SetOpen(isOpen)
 		self.shield.Visible = isOpen
 	end
 	if isOpen then
+		ui.openDropdowns[self] = true
 		positionDropdownMenu(self)
 		setZIndexRecursive(self.menu, 20)
+	else
+		ui.openDropdowns[self] = nil
 	end
 	self.button.Text = self:_selectedText()
 end
@@ -1857,6 +1945,9 @@ function multiDropdownClass:Refresh()
 	end
 
 	self.button.Text = self:_selectedText()
+	if self.open then
+		positionDropdownMenu(self)
+	end
 end
 
 function multiDropdownClass:SetOptions(options)
@@ -2226,6 +2317,7 @@ function tabClass:MultiDropdown(title, options, defaults, callback)
 	drop.open = false
 	drop.options = options or {}
 	drop.values = {}
+	connectDropdownPositionTracking(drop)
 
 	button.MouseButton1Click:Connect(function()
 		drop:SetOpen(not drop.open)
