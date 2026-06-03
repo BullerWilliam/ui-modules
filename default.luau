@@ -1545,6 +1545,30 @@ function tabClass:Label(text)
 	return item
 end
 
+local function getViewportSize()
+	return camera and camera.ViewportSize or Vector2.new(1280, 720)
+end
+
+local function positionDropdownMenu(dropdown)
+	local viewportHeight = getViewportSize().Y
+	local buttonBottom = dropdown.button.AbsolutePosition.Y + dropdown.button.AbsoluteSize.Y
+	local menuHeight = dropdown.menu.AbsoluteSize.Y
+
+	if menuHeight <= 0 then
+		menuHeight = dropdown.menu.Size.Y.Offset
+	end
+
+	local gap = 6
+	local menuBottom = buttonBottom + gap + menuHeight
+	local canOpenAbove = dropdown.button.AbsolutePosition.Y - gap - menuHeight >= 0
+
+	if menuBottom > viewportHeight and canOpenAbove then
+		dropdown.menu.Position = UDim2.new(0, 0, 0, -(menuHeight + gap))
+	else
+		dropdown.menu.Position = UDim2.new(0, 0, 0, 44 + gap)
+	end
+end
+
 function dropdownClass:SetValue(value)
 	self.value = value
 	self.button.Text = self.title .. ": " .. tostring(value)
@@ -1561,6 +1585,7 @@ function dropdownClass:SetOpen(isOpen)
 		self.shield.Visible = isOpen
 	end
 	if isOpen then
+		positionDropdownMenu(self)
 		setZIndexRecursive(self.menu, 20)
 	end
 	self.button.Text = self.value and (self.title .. ": " .. tostring(self.value)) or (self.title .. (isOpen and " ^" or " v"))
@@ -1778,6 +1803,7 @@ function multiDropdownClass:SetOpen(isOpen)
 		self.shield.Visible = isOpen
 	end
 	if isOpen then
+		positionDropdownMenu(self)
 		setZIndexRecursive(self.menu, 20)
 	end
 	self.button.Text = self:_selectedText()
