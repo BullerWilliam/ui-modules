@@ -687,6 +687,7 @@ function windowClass:CreateTab(name)
 	tab.frame = frame
 	tab.button = tabBtn
 	tab.window = self
+	tab.labels = {}
 	tab._suspendSaveRegistration = 0
 
 	table.insert(self.tabs, tab)
@@ -1898,12 +1899,31 @@ function labelClass:GetText()
 	return self.text
 end
 
-function tabClass:Label(text)
+function tabClass:SetLabelText(labelid, newtext)
+	local label = self.labels and self.labels[labelid]
+	if not label then
+		warn("tab:SetLabelText could not find label with id " .. tostring(labelid))
+		return nil
+	end
+
+	label:SetText(newtext or "")
+	return label
+end
+
+function tabClass:Label(labelid, text)
+	local labelText = text
+	local labelKey = labelid
+
+	if text == nil then
+		labelText = labelid
+		labelKey = nil
+	end
+
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, 0, 0, 36)
 	label.BackgroundColor3 = ui.theme.panel
 	label.BorderSizePixel = 0
-	label.Text = text or ""
+	label.Text = labelText or ""
 	label.TextColor3 = ui.theme.text
 	label.Font = Enum.Font.GothamMedium
 	label.TextSize = 14
@@ -1916,7 +1936,12 @@ function tabClass:Label(text)
 
 	local item = setmetatable({}, labelClass)
 	item.label = label
-	item.text = text or ""
+	item.text = labelText or ""
+
+	if labelKey ~= nil then
+		self.labels[labelKey] = item
+	end
+
 	return item
 end
 function dropdownClass:SetValue(value)
