@@ -62,8 +62,13 @@ local function copy(text)
 end
 
 local function read(path)
-	local text = readfile(path)
-	return text
+	local success, text = pcall(function()
+		return readfile(path)
+	end)
+	if success then
+		return text
+	end
+	return ""
 end
 
 local function set(path, value)
