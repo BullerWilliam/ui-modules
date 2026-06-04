@@ -62,4 +62,4 @@ local function copy(text)
 
 end
 
-return trigger2, copy, Xeno
+return trigger2, copy, Xeno, identifyexecutor
