@@ -59,7 +59,15 @@ end
 
 local function copy(text)
     setclipboard(text)
-
 end
 
-return trigger2, copy, Xeno, identifyexecutor
+local function read(path)
+	local text = readfile(path)
+	return text
+end
+
+local function set(path, value)
+	writefile("bullerwilliam/"..path, value)
+end
+
+return trigger2, copy, Xeno, identifyexecutor, read, set
