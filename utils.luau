@@ -63,7 +63,7 @@ end
 
 local function read(path)
 	local success, text = pcall(function()
-		return readfile(path)
+		return readfile("bullerwilliam/"..path)
 	end)
 	if success then
 		return text
