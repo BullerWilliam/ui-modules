@@ -1910,6 +1910,10 @@ function tabClass:SetLabelText(labelid, newtext)
 	return label
 end
 
+function tabClass:setlabeltext(labelid, text)
+	return self:SetLabelText(labelid, text)
+end
+
 function tabClass:Label(labelid, text)
 	local labelText = text
 	local labelKey = labelid
