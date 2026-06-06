@@ -274,6 +274,15 @@ local function textLimit(parent, minSize, maxSize)
 	return limit
 end
 
+local function normalizeLabelText(text)
+	if text == nil then
+		return ""
+	end
+
+	local textValue = tostring(text)
+	return string.gsub(textValue, "\\n", "\n")
+end
+
 local function setControlHover(control, normalColor)
 	control.MouseEnter:Connect(function()
 		control.BackgroundColor3 = ui.theme.controlHover
@@ -356,13 +365,16 @@ local function makeLabel(parent, text, width)
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(0, width or 110, 1, 0)
 	label.BackgroundTransparency = 1
-	label.Text = text
+	label.Text = normalizeLabelText(text)
 	label.TextColor3 = ui.theme.muted
 	label.Font = Enum.Font.GothamMedium
 	label.TextSize = 14
+	label.TextScaled = true
+	label.TextWrapped = true
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextTruncate = Enum.TextTruncate.AtEnd
+	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.Parent = parent
+	textLimit(label, 10, 14)
 	return label
 end
 
@@ -1891,8 +1903,8 @@ function tabClass:Divider(text)
 end
 
 function labelClass:SetText(text)
-	self.text = text
-	self.label.Text = text
+	self.text = normalizeLabelText(text)
+	self.label.Text = self.text
 end
 
 function labelClass:GetText()
@@ -1924,23 +1936,27 @@ function tabClass:Label(labelid, text)
 	end
 
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 0, 36)
+	label.Size = UDim2.new(1, 0, 0, 0)
+	label.AutomaticSize = Enum.AutomaticSize.Y
 	label.BackgroundColor3 = ui.theme.panel
 	label.BorderSizePixel = 0
-	label.Text = labelText or ""
+	label.Text = normalizeLabelText(labelText)
 	label.TextColor3 = ui.theme.text
 	label.Font = Enum.Font.GothamMedium
 	label.TextSize = 14
+	label.TextScaled = true
 	label.TextWrapped = true
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Center
 	label.Parent = self.frame
 	corner(label, 6)
 	stroke(label, ui.theme.border, 0.5)
-	padding(label, 10, 0, 10, 0)
+	padding(label, 10, 8, 10, 8)
+	textLimit(label, 10, 14)
 
 	local item = setmetatable({}, labelClass)
 	item.label = label
-	item.text = labelText or ""
+	item.text = normalizeLabelText(labelText)
 
 	if labelKey ~= nil then
 		self.labels[labelKey] = item
