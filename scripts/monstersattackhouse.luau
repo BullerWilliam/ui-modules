@@ -80,7 +80,9 @@ local function throwgrenade(monster)
 end
 
 tabs.Main:Divider("Main Functions")
+tabs.Main:Button("Close",function() stopall() end)
+
+tabs.Main:Divider("Actions")
 tabs.Main:Button("Find All Weapons",function() findallweapons() end)
 tabs.Main:Button("Shoot",function() shoot(Vector3.new(0, 0, 0)) end)
 tabs.Main:Button("Throw Grenade",function() throwgrenade(Vector3.new(0, 0, 0)) end)
-tabs.Main:Button("Close",function() stopall() end)
