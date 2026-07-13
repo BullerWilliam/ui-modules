@@ -1,11 +1,6 @@
---if game.Players.LocalPlayer.Character.State.Value == "Guess" then
---	game.Players.LocalPlayer.Table.Value.Configuration.Events.Guess:FireServer(script.Parent.Name)
---else
---	game.Players.LocalPlayer.Table.Value.Configuration.Events.Choose:FireServer(script.Parent.Name)
---end
---script.Parent.Parent.Parent.Visible = false
 local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/BullerWilliam/ui-modules/refs/heads/main/default.luau"))()
-
+local decompilescript = loadstring(game:HttpGet("https://raw.githubusercontent.com/BullerWilliam/ui-modules/refs/heads/main/decompiler.luau"))()
+local trigger, copy, xenoobject, executoridentifier, read, set = loadstring(game:HttpGet("https://raw.githubusercontent.com/BullerWilliam/ui-modules/refs/heads/main/utils.luau"))()
 
 local auto_guess = false
 local auto_choose = false
@@ -87,7 +82,17 @@ local thread = task.spawn(function()
 		until not isingame()
 	end
 end)
-local win = ui:CreateWindow("Guess My Number")
+
+
+local win
+if executoridentifier then
+	local executorname, executorversion = executoridentifier()
+	win = ui:CreateWindow("Guess My Number  ("..executorname.." "..executorversion..")")
+else
+	win = ui:CreateWindow("Guess My Number")
+end
+
+
 local tab = win:CreateTab("Main")
 local function stopall()
 	task.cancel(thread)
