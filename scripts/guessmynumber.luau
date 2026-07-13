@@ -65,12 +65,6 @@ local function getbestguess()
 	local mid = math.round((gethighest() + getlowest()) / 2)
 	return mid
 end
-
-local win = ui:CreateWindow("Guess My Number")
-local tab = win:CreateTab("Main")
-tab:Toggle("Auto Guess",false,function(v) auto_guess = v end)
-tab:Toggle("Auto Choose",false,function(v) auto_choose = v end)
-tab:Input("Auto Choose Value",function(t) auto_choose_value = tonumber(t) or 1 end)
 local thread = task.spawn(function()
 	while true do
 		repeat
@@ -93,14 +87,21 @@ local thread = task.spawn(function()
 		until not isingame()
 	end
 end)
+local win = ui:CreateWindow("Guess My Number")
+local tab = win:CreateTab("Main")
 local function stopall()
 	task.cancel(thread)
 	win.frame:Destroy()
-	script:Destroy()
 end
-window:setclosefunction(function()
+win:setclosefunction(function()
 	stopall()
 end)
-tab:Button("Close",function() 
-	stopall()
-end)
+
+
+tab:Divider("Main Functions")
+tab:Button("Close",function() stopall() end)
+
+tab:Divider("Automate")
+tab:Toggle("Auto Guess",false,function(v) auto_guess = v end)
+tab:Toggle("Auto Choose",false,function(v) auto_choose = v end)
+tab:Input("Auto Choose Value",function(t) auto_choose_value = tonumber(t) or 1 end)
