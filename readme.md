@@ -12,6 +12,9 @@ local ui = loadstring(game:HttpGet("https://raw.githubusercontent.com/BullerWill
 
 ```luau
 local window = ui:CreateWindow("Example UI")
+window:setclosefunction(function()
+	window.frame:Destroy()
+end)
 
 local main = window:CreateTab("Main")
 local settings = window:CreateTab("Settings")
@@ -65,6 +68,7 @@ end)
 ## Features
 
 - Draggable, auto-scaled windows.
+- Built-in top-bar minimize button with animated collapse back to the header.
 - Theme switching with default blue or a custom accent color.
 - Horizontally scrolling tab bar.
 - Scrollable tab content for larger UIs.
@@ -78,6 +82,7 @@ end)
 - Themes can be changed with `ui:SetTheme("default")`, `ui:SetTheme(Color3.fromRGB(255, 90, 120))`, `ui:SetAccentColor(color)`, or `ui:UseDefaultTheme()`.
 - Dropdowns support `SetOptions(options)` and `SetValue(value)`.
 - Multi dropdowns support `SetOptions(options)` and `SetValue(values)`.
+- Window close buttons only run a callback if you register one with `window:setclosefunction(callback)`.
 
 ## Inputs
 

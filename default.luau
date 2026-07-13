@@ -3,6 +3,7 @@ local plr = plrs.LocalPlayer
 local uis = game:GetService("UserInputService")
 local camera = workspace.CurrentCamera
 local http = game:GetService("HttpService")
+local tweenService = game:GetService("TweenService")
 
 print("------------------------loaded ui module-------------------------")
 print("---------------------------Version:1.1---------------------------")
@@ -57,6 +58,8 @@ multiDropdownClass.__index = multiDropdownClass
 
 local dropdownListClass = {}
 dropdownListClass.__index = dropdownListClass
+
+local windowCollapseTweenInfo = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local function clamp(value, minValue, maxValue)
 	return math.max(minValue, math.min(maxValue, value))
@@ -523,22 +526,73 @@ function ui:CreateWindow(titleText)
 	sizeConstraint.MaxSize = Vector2.new(620, 720)
 	sizeConstraint.Parent = main
 
+	local topBar = Instance.new("Frame")
+	topBar.Size = UDim2.new(1, 0, 0, 44)
+	topBar.BackgroundColor3 = ui.theme.panel
+	topBar.BorderSizePixel = 0
+	topBar.Active = true
+	topBar.Parent = main
+	corner(topBar, 8)
+
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 44)
-	title.BackgroundColor3 = ui.theme.panel
-	title.BorderSizePixel = 0
+	title.Size = UDim2.new(1, -76, 1, 0)
+	title.BackgroundTransparency = 1
 	title.Text = titleText
 	title.TextColor3 = ui.theme.text
 	title.Font = Enum.Font.GothamBold
 	title.TextScaled = true
-	title.Parent = main
-	corner(title, 8)
-	padding(title, 12, 0, 12, 0)
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = topBar
+	padding(title, 12, 0, 0, 0)
 	textLimit(title, 14, 20)
+
+	local minimizeButton = Instance.new("TextButton")
+	minimizeButton.Size = UDim2.new(0, 24, 0, 24)
+	minimizeButton.Position = UDim2.new(1, -56, 0.5, -12)
+	minimizeButton.BackgroundColor3 = ui.theme.control
+	minimizeButton.BorderSizePixel = 0
+	minimizeButton.Text = "-"
+	minimizeButton.TextColor3 = ui.theme.text
+	minimizeButton.Font = Enum.Font.GothamBold
+	minimizeButton.TextSize = 14
+	minimizeButton.AutoButtonColor = false
+	minimizeButton.Parent = topBar
+	corner(minimizeButton, 6)
+	stroke(minimizeButton, ui.theme.border, 0.5)
+	setControlHover(minimizeButton, ui.theme.control)
+
+	local closeButton = Instance.new("TextButton")
+	closeButton.Size = UDim2.new(0, 24, 0, 24)
+	closeButton.Position = UDim2.new(1, -28, 0.5, -12)
+	closeButton.BackgroundColor3 = ui.theme.control
+	closeButton.BorderSizePixel = 0
+	closeButton.Text = "X"
+	closeButton.TextColor3 = ui.theme.text
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.TextSize = 12
+	closeButton.AutoButtonColor = false
+	closeButton.Parent = topBar
+	corner(closeButton, 6)
+	stroke(closeButton, ui.theme.border, 0.5)
+	setControlHover(closeButton, ui.theme.control)
+
+	local bodyClip = Instance.new("Frame")
+	bodyClip.Size = UDim2.new(1, 0, 1, -44)
+	bodyClip.Position = UDim2.new(0, 0, 0, 44)
+	bodyClip.BackgroundTransparency = 1
+	bodyClip.BorderSizePixel = 0
+	bodyClip.ClipsDescendants = true
+	bodyClip.Parent = main
+
+	local bodyContent = Instance.new("Frame")
+	bodyContent.Size = UDim2.new(1, 0, 1, 0)
+	bodyContent.BackgroundTransparency = 1
+	bodyContent.BorderSizePixel = 0
+	bodyContent.Parent = bodyClip
 
 	local tabsBar = Instance.new("ScrollingFrame")
 	tabsBar.Size = UDim2.new(1, 0, 0, 40)
-	tabsBar.Position = UDim2.new(0, 0, 0, 44)
+	tabsBar.Position = UDim2.new(0, 0, 0, 0)
 	tabsBar.BackgroundColor3 = ui.theme.panel
 	tabsBar.BorderSizePixel = 0
 	tabsBar.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -546,7 +600,7 @@ function ui:CreateWindow(titleText)
 	tabsBar.ScrollingDirection = Enum.ScrollingDirection.X
 	tabsBar.ScrollBarThickness = 3
 	tabsBar.ScrollBarImageColor3 = ui.theme.accent
-	tabsBar.Parent = main
+	tabsBar.Parent = bodyContent
 	ui:_bindTheme(tabsBar, "ScrollBarImageColor3", "accent")
 	padding(tabsBar, 8, 5, 8, 5)
 
@@ -557,29 +611,53 @@ function ui:CreateWindow(titleText)
 	tabsLayout.Parent = tabsBar
 
 	local content = Instance.new("Frame")
-	content.Size = UDim2.new(1, -20, 1, -98)
-	content.Position = UDim2.new(0, 10, 0, 90)
+	content.Size = UDim2.new(1, -20, 1, -54)
+	content.Position = UDim2.new(0, 10, 0, 46)
 	content.BackgroundTransparency = 1
 	content.ClipsDescendants = true
-	content.Parent = main
+	content.Parent = bodyContent
 
-	title.InputBegan:Connect(function(input)
+	local function beginDrag(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 and ui.dragWindow == nil then
 			ui.dragWindow = main
 			ui.dragStart = input.Position
 			ui.startPos = main.Position
 		end
-	end)
+	end
+
+	topBar.InputBegan:Connect(beginDrag)
+	title.InputBegan:Connect(beginDrag)
 
 	local win = setmetatable({}, windowClass)
 	win.frame = main
+	win.topBar = topBar
+	win.sizeConstraint = sizeConstraint
+	win._defaultMinSize = sizeConstraint.MinSize
+	win.bodyClip = bodyClip
+	win.bodyContent = bodyContent
 	win.tabsBar = tabsBar
 	win.content = content
 	win.tabs = {}
 	win.tabButtons = {}
 	win.currentTab = nil
 	win.title = title
+	win.closeButton = closeButton
+	win.minimizeButton = minimizeButton
+	win.isMinimized = false
+	win._isAnimatingMinimize = false
+	win._expandedSize = main.Size
+	win._closeFunction = nil
 	win._saveControls = {}
+
+	minimizeButton.MouseButton1Click:Connect(function()
+		win:SetMinimized(not win.isMinimized)
+	end)
+
+	closeButton.MouseButton1Click:Connect(function()
+		if win._closeFunction then
+			win._closeFunction()
+		end
+	end)
 
 	table.insert(self.windows, win)
 
@@ -588,6 +666,56 @@ end
 
 function windowClass:ChangeTitle(newtitle)
 	self.title.Text = newtitle
+end
+
+function windowClass:setclosefunction(callback)
+	if callback ~= nil and type(callback) ~= "function" then
+		error("window:setclosefunction expected a function or nil")
+	end
+
+	self._closeFunction = callback
+end
+
+function windowClass:SetCloseFunction(callback)
+	self:setclosefunction(callback)
+end
+
+function windowClass:SetMinimized(isMinimized)
+	isMinimized = not not isMinimized
+	if self._isAnimatingMinimize or self.isMinimized == isMinimized then
+		return
+	end
+
+	if isMinimized then
+		self._expandedSize = self.frame.Size
+		self.sizeConstraint.MinSize = Vector2.new(self._defaultMinSize.X, 44)
+	else
+		self.sizeConstraint.MinSize = self._defaultMinSize
+	end
+
+	self._isAnimatingMinimize = true
+	self.isMinimized = isMinimized
+	self.minimizeButton.Text = isMinimized and "+" or "-"
+
+	local expandedSize = self._expandedSize or self.frame.Size
+	local collapsedSize = UDim2.new(expandedSize.X.Scale, expandedSize.X.Offset, 0, 44)
+	local mainTween = tweenService:Create(self.frame, windowCollapseTweenInfo, {
+		Size = isMinimized and collapsedSize or expandedSize,
+	})
+	local bodyTween = tweenService:Create(self.bodyContent, windowCollapseTweenInfo, {
+		Position = isMinimized and UDim2.new(0, 0, -1, 0) or UDim2.new(0, 0, 0, 0),
+	})
+
+	mainTween.Completed:Connect(function()
+		self._isAnimatingMinimize = false
+	end)
+
+	bodyTween:Play()
+	mainTween:Play()
+end
+
+function windowClass:ToggleMinimized()
+	self:SetMinimized(not self.isMinimized)
 end
 
 function windowClass:Save()
