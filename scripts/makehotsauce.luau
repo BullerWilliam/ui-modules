@@ -167,6 +167,9 @@ local function stopall()
 	end
 	script:Destroy()
 end
+window:setclosefunction(function()
+	stopall()
+end)
 local function copysave()
 	copy(window:Save())
 end

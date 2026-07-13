@@ -27,6 +27,9 @@ local function stopall()
 	window_frame:Destroy()
 	script:Destroy()
 end
+window:setclosefunction(function()
+	stopall()
+end)
 
 local function shoot(targetPosition)
 	local tool = plr.Backpack:FindFirstChild("Revolver") or plr.Character:FindFirstChild("Revolver")

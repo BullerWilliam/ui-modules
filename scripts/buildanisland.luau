@@ -307,6 +307,9 @@ local function stopall()
 	end
 	script:Destroy()
 end
+window:setclosefunction(function()
+	stopall()
+end)
 local function spawnafishdrop(plr)
 	local mainpos = getplayerpos(plr)
 	local pos = mainpos + Vector3.new(math.random(-30, 30), 20, math.random(-10, 10))
