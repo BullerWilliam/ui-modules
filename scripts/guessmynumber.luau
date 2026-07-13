@@ -110,3 +110,24 @@ tab:Divider("Automate")
 tab:Toggle("Auto Guess",false,function(v) auto_guess = v end)
 tab:Toggle("Auto Choose",false,function(v) auto_choose = v end)
 tab:Input("Auto Choose Value",function(t) auto_choose_value = tonumber(t) or 1 end)
+
+tab:Divider("Executor Info")
+if xenoobject then
+	local info = xenoobject.about
+	for k, v in pairs(xenoobject.about) do
+		print(k, v)
+	end
+	tab:Label("Publisher", "Publisher: "..info["Publisher"])
+	tab:Label("Name", "Name: "..info["Name"])
+	tab:Label("Discord", "Discord: "..info["Discord"])
+	tab:Label("Website", "Website: "..info["Website"])
+	tab:Label("Version", "Version: "..info["Version"])
+	tab:Label("Roblox Version", "Roblox Version: "..info["RobloxGameClientVersionHash"])
+else
+	tab:Label("Publisher", "Unknown Publisher")
+	tab:Label("Name", "Unknown Executor")
+	tab:Label("Discord", "No Discord Found")
+	tab:Label("Website", "No Website Found")
+	tab:Label("Version", "Unknown Version")
+	tab:Label("Roblox Version", "Unknown Roblox Version")
+end
