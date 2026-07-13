@@ -216,7 +216,7 @@ end
 
 local window
 
-if xenoobject then
+if executoridentifier then
 	local executorname, executorversion = executoridentifier()
 	window = ui:CreateWindow("Build an island🏝️  ("..executorname.." "..executorversion..")")
 else
@@ -424,6 +424,7 @@ local function getallressources()
 	repeat
 		task.wait()
 	until breakwaiting <= 15
+	--print("Done Breaking!")
 end
 local function getlistofmaterialsfortarget(targetexpand2)
 	local list = {}
@@ -762,6 +763,7 @@ local function completeexpand(part)
 		local amount = item["Amount"]
 		local current = item["Current"]
 		local give = math.clamp(amount - current, 0, (getcurrentressources()[itemname] or 0))
+		--print(part.Name, itemname, give)
 		remote:FireServer(part.Name, itemname, give)
 	end
 end
@@ -793,9 +795,13 @@ local function teleporttotarget()
 end
 local function getcraftercrafting(crafter)
 	local craftermodel = workspace.Plots:findFirstChild(player.Name):findFirstChild("Land"):findFirstChild(crafter)
-	local ui = craftermodel.Crafter.Attachment.UI.Value
-	local currentmaking = tonumber(ui.Progress.Title.Text)
-	return currentmaking
+	if craftermodel then
+		local ui = craftermodel.Crafter.Attachment.UI.Value
+		local currentmaking = tonumber(ui.Progress.Title.Text)
+		return currentmaking
+	else
+		return 10000000
+	end
 end
 local function craftall()
 	for _, crafter in ipairs(crafters) do
@@ -1087,12 +1093,14 @@ if xenoobject then
 	tabs.Main:Label("Discord", "Discord: "..info["Discord"])
 	tabs.Main:Label("Website", "Website: "..info["Website"])
 	tabs.Main:Label("Version", "Version: "..info["Version"])
+	tabs.Main:Label("Roblox Version", "Roblox Version: "..info["RobloxGameClientVersionHash"])
 else
 	tabs.Main:Label("Publisher", "Unknown Publisher")
 	tabs.Main:Label("Name", "Unknown Executor")
 	tabs.Main:Label("Discord", "No Discord Found")
 	tabs.Main:Label("Website", "No Website Found")
 	tabs.Main:Label("Version", "Unknown Version")
+	tabs.Main:Label("Roblox Version", "Unknown Roblox Version")
 end
 
 
@@ -1146,12 +1154,13 @@ tabs.Other:Button("Collect Money From Mines",function() collectallcoinsfrommines
 tabs.Other:Button("Claim All Timed Rewards",function() claimalltimesrewards() end)
 tabs.Other:Button("Exapand Island",function() doallexpand() end)
 tabs.Other:Button("Buy Gold Upgrades",function() buyneededgoldupgrades() end)
+--tabs.Other:Button("Teleport To Target",function() teleporttotarget() end)
 
 tabs.Monitoring:Label("materials_unlocked","Unlocked Materials:\n")
 
 
 tabs.Workers:Button("Hire All Workers",function() hireallworkers() end)
-tabs.Workers:DropdownList("Lumberjacks", 5, 5, table.create(5, "Log"), {"Log", "Bamboo", "Wheat", "Cactus", "Magma Log", "Mushroom"}[[, "Wheat", "Cactus", "FireLog", "Mushroom"}]], "Log", function(v) values.WorkersLumbers = v setworkersincate(1) end)
+tabs.Workers:DropdownList("Lumberjacks", 5, 5, table.create(5, "Log"), {"Log", "Bamboo", "Wheat", "Cactus", "Magma Log", "Mushroom"}--[[, "Wheat", "Cactus", "FireLog", "Mushroom"}]], "Log", function(v) values.WorkersLumbers = v setworkersincate(1) end)
 tabs.Workers:DropdownList("Miners", 4, 4, table.create(4, "Stone"), {"Stone", "Iron Ore", "Sand", "Magma Crystal", "Obsidian", "Salt"}, "Stone", function(v) values.WorkersMiners = v setworkersincate(2) end)
 tabs.Workers:DropdownList("Crafters", 4, 4, table.create(4, "Plank"), {"None", "Plank", "Brick", "Bamboo Plank", "Iron Bar", "Haybale", "Cactus Fiber", "Cement", "Magmite", "Magma Plank", "Obsidian Glass", "Mushroom Plank", "Salt Bag", "Banana Crate"}, "Plank", function(v) values.WorkersCrafters = v setworkersincate(3) end)
 tabs.Workers:DropdownList("Zookeepers", 3, 3, table.create(3, "Poop"), {"Poop", "Honeycomb"}, "Poop", function(v) values.WorkersZookeepers = v setworkersincate(4) end)
