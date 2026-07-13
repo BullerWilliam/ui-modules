@@ -6,7 +6,7 @@ local http = game:GetService("HttpService")
 local tweenService = game:GetService("TweenService")
 
 print("------------------------loaded ui module-------------------------")
-print("---------------------------Version:1.1---------------------------")
+print("---------------------------Version:1.2---------------------------")
 print("-----------------------------------------------------------------")
 
 local gui = Instance.new("ScreenGui")
